@@ -82,6 +82,45 @@
 如需把危险操作升级为硬门禁，使用：
 - `harness-hook-setup`
 
+## 通过 npm 安装或同步 skills
+
+仓库现在提供了一个显式安装脚本，用来把 `skills/` 下的内容复制到目标 `skills` 目录。
+
+默认行为：
+- 来源目录：当前仓库根目录下的 `skills/`
+- 复制语义：覆盖同路径已有文件，但不会删除目标目录中仓库之外的额外文件
+- 保留完整 skill 子树：包括 `SKILL.md`、`references/`、`testing/` 等嵌套内容
+
+### 目标目录模式
+
+1. **默认模式**：复制到当前工作目录下的 `.claude/skills/`
+2. **全局模式**：复制到 `~/.claude/skills/`
+3. **自定义模式**：复制到 `--target` 指定目录
+
+### 在仓库中执行
+
+```bash
+npm run install-skills
+npm run install-skills -- --global
+npm run install-skills -- --target /path/to/skills-dir
+```
+
+### 作为 npm 包执行
+
+```bash
+npx <your-package-name>
+npx <your-package-name> --global
+npx <your-package-name> --target /path/to/skills-dir
+```
+
+> `package.json` 里的包名当前是占位值，发布前请替换成你的正式 npm 包名。
+
+### 安装结果示例
+
+- 默认模式会写入：`./.claude/skills/<skill-name>/...`
+- 全局模式会写入：`~/.claude/skills/<skill-name>/...`
+- 自定义模式会写入：`<target>/<skill-name>/...`
+
 ## 目录结构
 
 ```text
