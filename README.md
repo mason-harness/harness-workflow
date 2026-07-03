@@ -132,8 +132,9 @@ npx <your-package-name> --target /path/to/skills-dir
 │   ├── architecture.md
 │   ├── modules.md
 │   ├── integrations.md
-│   ├── harness-workflow.md
-│   └── ... 其他历史专题文档与参考资料
+│   └── harness-workflow.md
+├── docs/
+│   └── ... 专题文档与参考资料
 └── skills/
     ├── harness-claude-setup/
     ├── harness-hook-setup/
@@ -147,14 +148,13 @@ npx <your-package-name> --target /path/to/skills-dir
 
 ## 补充资料
 
-`repository/` 下还保留了一些历史专题文档，适合作为补充阅读，例如：
-- `Hardness-Practice-v3.md`
-- `OpenSpec 技能分析.md`
-- `OpenSpec 规范驱动开发完全指南.md`
+`docs/` 下还保留了一些历史专题文档与参考资料，适合作为补充阅读，例如：
+- `Hardness-Practice.md`
 - `OpenSpec Change 拆分策略文档.md`
-- `参考-ClaudeCode原语能力边界.md`
+- `ClaudeCode原语能力边界.md`
+- `OpenSpec 参考文档.md`
 
-这些文档目前不作为主入口；新的长期知识结构以 `CLAUDE.md` 与 `repository/README.md` 为准。
+这些文档仅作为补充参考材料保留，不承担仓库主入口或正式规则载体职责。
 
 ## 最后更新
 
