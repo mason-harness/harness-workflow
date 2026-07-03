@@ -84,12 +84,13 @@
 
 ## 通过 npm 安装或同步 skills
 
-仓库现在提供了一个显式安装脚本，用来把 `skills/` 下的内容复制到目标 `skills` 目录。
+仓库提供了一个显式安装脚本，用来把 `skills/` 下的内容复制到目标 `skills` 目录。
 
 默认行为：
 - 来源目录：当前仓库根目录下的 `skills/`
 - 复制语义：覆盖同路径已有文件，但不会删除目标目录中仓库之外的额外文件
 - 保留完整 skill 子树：包括 `SKILL.md`、`references/`、`testing/` 等嵌套内容
+- 运行环境：Node.js `>=18`
 
 ### 目标目录模式
 
@@ -107,13 +108,19 @@ npm run install-skills -- --target /path/to/skills-dir
 
 ### 作为 npm 包执行
 
+当前 `package.json` 中的包名是 `claude-harness-skills`，CLI 入口是 `install-claude-skills`。
+
 ```bash
-npx <your-package-name>
-npx <your-package-name> --global
-npx <your-package-name> --target /path/to/skills-dir
+npx claude-harness-skills
+npx claude-harness-skills --global
+npx claude-harness-skills --target /path/to/skills-dir
 ```
 
-> `package.json` 里的包名当前是占位值，发布前请替换成你的正式 npm 包名。
+如需查看参数帮助：
+
+```bash
+npx claude-harness-skills --help
+```
 
 ### 安装结果示例
 
@@ -127,6 +134,9 @@ npx <your-package-name> --target /path/to/skills-dir
 .
 ├── CLAUDE.md
 ├── README.md
+├── package.json
+├── scripts/
+│   └── install-skills.js
 ├── repository/
 │   ├── README.md
 │   ├── architecture.md
