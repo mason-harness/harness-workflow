@@ -89,6 +89,42 @@ description: Use when validating an OpenSpec Change through /opsx:verify or equi
 - 不得只看测试通过，而忽略任务完成度与 CRITICAL 项
 - 发现 archive 前提不满足时，必须明确报告“不得归档”
 
+## Evidence Audit
+
+执行证据审计时，至少按以下字段对账：
+
+| Task | Evidence location | Command | Output summary | Timestamp | Result |
+|---|---|---|---|---|---|
+| `<task>` | `verify.md#...` 或 `[EVIDENCE MISSING]` | `<command>` | `<关键结论行>` | `<time>` | PASS / WARNING / CRITICAL |
+
+证据可信度按以下顺序判断：
+- **高**：CI、Hook、测试报告文件等工具生成证据
+- **中**：可复现命令 + 关键输出 + 时间戳的记录
+- **低**：只写“已验证”“已检查”“应该通过”的自报告
+
+防造假要求：
+- 关键验证应重新运行；无法重跑时必须说明原因和风险
+- 命令输出必须包含可验证结论行，例如 passed / failed / 0 error / error count
+- 发现明显无法复现或疑似伪造的证据时，标记为 `[EVIDENCE FORGED]`，不得建议 archive
+
+## Subagent Delegation
+
+以下场景可以委托 Subagent 做只读证据核对：
+- `verify.md` 很长，需要提炼证据完整性结论
+- 需要跨 `tasks.md`、`verify.md`、artifacts、测试输出对账
+- archive 前需要独立门禁扫描
+
+Subagent 只负责校验并回传结论，不替代 Hook 做强拦截，也不替代真实测试执行。
+
+## Archive Gate Output
+
+archive 前必须给出明确结论：
+- **PASS**：tasks 完成、证据完整、无 CRITICAL，可继续 archive
+- **WARNING**：存在轻微缺口，原则上应先修复；如继续需说明风险
+- **CRITICAL**：存在未完成 task、证据缺失、伪造证据或设计/需求偏差，不得 archive
+
+CRITICAL 结论必须列出不得 archive 的直接依据，而不是只写“风险较高”。
+
 ## STOP / BLOCKED Handling
 
 ### STOP

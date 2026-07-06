@@ -50,6 +50,23 @@ description: Use when setting up PreToolUse Hooks, model bypasses safety rules, 
 | **软 STOP** | Rule（CLAUDE.md / config.yaml） | 模型读取规则后主动判断并暂停 | 是（模型可能忽略） | 需求检查、证据缺失、tasks 未完成 |
 | **硬 STOP** | Hook（PreToolUse） | 工具调用前被拦截，返回 DENY | 否（模型无法绕过） | 数据删除、生产部署、危险命令 |
 
+### STOP Boundary
+
+STOP 既是门禁，也是诊断信号；不是所有 STOP 都应该升级为 Hook。
+
+适合升级为 Hook 的规则必须同时满足：
+- 高风险或不可逆，例如数据删除、生产部署、大范围覆盖、权限变更
+- 可通过工具输入客观检测，例如命令模式、文件路径、目标目录
+- 误拦截面可控，能先限定 matcher、cwd、目标路径和例外路径
+- 项目不能接受模型偶发忽略规则，需要不可绕过的硬拦截
+
+不适合升级为 Hook 的场景：
+- 需求冲突、证据缺失、tasks 设计缺口等需要语义判断的问题
+- Apply / Verify 阶段的软 STOP 或 BLOCKED 判断
+- 主要依赖人工裁决、上下文解释或流程诊断的规则
+
+这些情况应保留在规则、报告或人工决策层；Hook 只承载可客观检测且高风险的硬门禁。
+
 ### Hook 配置位置
 
 | 文件 | 作用域 | 何时使用 |

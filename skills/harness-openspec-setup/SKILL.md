@@ -45,6 +45,21 @@ description: Use when encountering "YAML parse errors", "missing required rules"
 - Verify/Archive: L3-L4 (Gate with STOP)
 - 封堵自我合理化：Apply “测试失败不得勾选，无例外” / Verify “证据缺失视为未完成，无例外”
 
+**Progressive Adoption**:
+- 阶段 1：先封堵跳过验证和未完成归档，至少配置 apply / archive 的最小硬规则
+- 阶段 2：补齐 verify 证据门禁，要求测试 task 具备命令、范围、期望结果、失败处理、证据位置
+- 阶段 3：完善 proposal / specs / design / tasks / apply / verify / archive 全流程护栏
+- 不要让轻量需求被复杂流程拖慢；轻量需求通过 right-sized Change 判断后可直接进入普通 Change 流程
+
+**Failure Diagnosis**:
+- 模型跳过测试 → strengthen `rules.apply`，写明命令未运行不得勾选完成
+- 测试未运行却勾选 → add evidence requirements，证据缺失视为未完成
+- tasks 未完成就 archive → strengthen `rules.archive`，tasks 未完成必须 STOP
+- verify 只有“已验证”结论 → require command / output / timestamp
+- 危险操作仍被执行 → 交给 Hook 配置流程评估是否需要硬门禁
+
+诊断说明只用于 setup 决策和报告，不要把长段诊断文本写进 `config.yaml rules`；artifact rules 仍保持短句、可执行、可检查。
+
 ## References
 
 **Detailed content moved to references/ for token efficiency:**

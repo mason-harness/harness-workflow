@@ -107,6 +107,34 @@ description: Use when implementing an OpenSpec Change through /opsx:apply or equ
 - 风险说明
 - 需要的决策
 - 当前未完成 task
+- 如果确认继续，需要记录的证据或恢复动作
+
+统一格式：
+```markdown
+## STOP - 需要人工确认
+
+### 触发原因
+<说明触发了哪条 apply 纪律或 Change 边界>
+
+### 风险说明
+<说明继续执行可能造成的偏差、越界或假完成风险>
+
+### 需要的决策
+- [ ] 调整 tasks / design 后再继续
+- [ ] 确认风险可接受，继续当前路径
+- [ ] 标记 BLOCKED，交回 verify / 上游设计处理
+
+### 当前未完成 task
+<列出 checkbox 或责任单元>
+```
+
+STOP 后恢复记录：
+
+| 用户响应 | Apply 行动 | Verify 交接记录 |
+|---|---|---|
+| 确认继续 | 继续执行最小责任单元 | `[STOP CONFIRMED]` + 原因 + 用户决策 + 执行时间 |
+| 拒绝继续 | 保持 task 未完成 | `[STOP REJECTED]` + blocker + 需要的调整 |
+| 要求回滚 | 回到最近安全状态 | `[STOP ROLLBACK]` + 回滚范围 + 后续验证要求 |
 
 ### BLOCKED
 
@@ -119,6 +147,25 @@ description: Use when implementing an OpenSpec Change through /opsx:apply or equ
 - 保持 checkbox 未完成
 - 记录 blocker、失败命令、错误摘要
 - 交给 verify/report，不伪装为已完成
+
+BLOCKED 记录最少包含：
+- 失败命令
+- 输出摘要或关键错误
+- 已尝试的最小修复
+- 仍未完成的 checkbox
+- 继续推进所需的新设计、依赖、证据或人工决策
+
+## Progressive Repair Loop
+
+测试或验证失败时，只允许在 Change 边界内执行渐进修复：
+
+1. 记录失败命令和输出摘要
+2. 识别最小可能原因
+3. 做最小修复，不扩大 tasks 范围
+4. 先重跑最窄验证，再考虑更宽检查
+5. 只要失败特征仍在变化且有收敛迹象，可以继续一轮
+6. 当失败特征不再变化、修复需要越界、或证据不足以判断根因时，停止为 BLOCKED
+7. 保持相关 checkbox 未完成，并把命令、输出、blocker 交给 verify
 
 ## Handoff to Verify and Archive
 

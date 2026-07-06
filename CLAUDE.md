@@ -18,7 +18,9 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## 常用命令
 
-未发现 `package.json`、Makefile、Taskfile、`pyproject.toml`、`go.mod`、`Cargo.toml`、`pom.xml` 等可执行来源，因此不要在本仓库声明本地 build、test、lint 命令。
+已验证存在 `package.json`，当前唯一可执行来源是 `scripts.install-skills`（`npm run install-skills`）。
+
+除安装/同步 skills 外，未发现 build、test、lint、deploy 等可执行来源，因此不要在本仓库声明这类本地命令。
 
 在修改文档前，优先阅读：
 - `README.md`
