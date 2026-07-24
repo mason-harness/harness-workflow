@@ -28,6 +28,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## Before Finishing（必需章节）
 ## Dangerous Operations（必需章节）
 ## 禁止的自我合理化（推荐章节）
+## Context Management（推荐章节）
 ## Notes for Claude Code
 ```
 
@@ -95,6 +96,22 @@ repository/
 - 不得以“逻辑上正确”代替实际运行验证
 - 不得以“基本完成”为由勾选未验证的 checkbox
 - 不得以“代码看起来没问题”代替实际测试
+```
+
+### Context Management（推荐章节）
+
+> 本节条目是**可独立生效的执行纪律**：复制到任意项目 `CLAUDE.md` 后无需引用其他文件即能约束会话行为。完整方法论（四层模型、委派契约、Apply 期读写减负）见本仓 `docs/Context-Hygiene-Practice.md`，但**不依赖该路径生效**——以下条目本身已是最小可执行集合。
+
+把上下文窗口当作有限可耗尽资源主动管理，而不是等撑爆再被动处理：
+
+```markdown
+## Context Management（推荐章节）
+
+- 探索/对账会读大量文件只为得一个结论 → 委派 subagent，主上下文只收结论+证据位置（文件:行 / 命令+摘要+时间戳），不收原文
+- 窗口变重且本任务未完 → 先把进度落 tasks.md/verify.md，再 `/compact`，不丢状态继续
+- 一个 Change 已归档、要切下一主题 → 状态已落盘后 `/clear` 开新会话，避免旧上下文污染新 Change
+- 压缩/清空前必须确认 tasks 与 verify 证据已落盘；缺失则视为未完成，先补证据再压缩
+- 委派的 subagent 只回依据，不持 task lifecycle / checkoff / STOP 裁决（决策留在主上下文）
 ```
 
 ## 技术栈特定章节建议

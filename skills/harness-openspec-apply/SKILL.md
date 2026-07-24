@@ -167,6 +167,62 @@ BLOCKED 记录最少包含：
 6. 当失败特征不再变化、修复需要越界、或证据不足以判断根因时，停止为 BLOCKED
 7. 保持相关 checkbox 未完成，并把命令、输出、blocker 交给 verify
 
+## Subagent Delegation
+
+### 适用与不适配
+
+在单个 checkbox / 责任单元内，可把 **dev（实现）→ test（验证）** 拆成两个 subagent 串行执行（subagents-in-sequence），用于隔离读写污染、保护主上下文。
+
+**用 Agent tool（subagents in sequence），不用 Workflow tool**：
+- Workflow 由 script 决定下一步运行什么，而 apply 纪律要求 **main agent 逐轮判断收敛**。
+- Workflow 不支持 mid-run 用户输入，与 apply 的 **STOP / BLOCKED 人工裁决**冲突。
+- Workflow 完成才停，无法在 dev→test 之间插入 checkoff 门。
+
+因此 dev→test 串行编排只能用 subagents-in-sequence。
+
+### 限定边界
+
+- **只限单 checkbox 内的 dev→test 串行**，不是多 checkbox 并行（违反“一次只推进一个 checkbox”，见 Discipline Rules）。
+- dev 与 test 必须先由 preflight 确认已分离为独立 task（见 Workflow §2 preflight）；混合 task（如“实现 X 并测试”）不委派，先 STOP。
+- 不跨 Change 边界委派；越界即 STOP/BLOCKED。
+
+**为什么“分离”不能被“委派”替代**：自动把一个 task 拆成 dev→test 两个 subagent 串行，只改变“谁干这两段”，没改变“完成判定的语义”。混合 task 会让勾选粒度不可分（test 失败时既不能勾、又不能说“实现那半完成”）、证据映射模糊、失败独立性丧失。preflight 要的 impl/test 分离是 **design 级结构要求**（管 checkbox 边界与证据落位）；subagent 串行是 **execution 级编排**（管谁干）。两者不同层，不互斥——委派不能替 design 兜边界。
+
+### 委派契约（dev / test 不对称，不照搬 verify 的“只回结论”）
+
+**dev subagent（实现）**——回传**证据载荷**，不是“done”：
+- 改动文件列表
+- 执行命令
+- 可验证结论行（如 `typecheck: 0 error`）
+- 时间戳
+- 失败特征（若未通过）
+
+**test subagent（验证）**——**独立运行命令**，回传中-高可信证据：
+- 契合 verify 防造假要求（自报告 = 低可信；可复现命令 + 结论行 + 时间戳 = 中可信；工具生成 = 高可信）。
+- 不复用 dev subagent 的“我说改对了”，独立跑命令取结果。
+
+**main agent 持有（不外包给 subagent）**：
+- 收敛判断（是否进入下一 checkbox）
+- checkoff
+- STOP / BLOCKED 裁决
+- handoff to verify
+- task lifecycle（subagent 不持 task lifecycle）
+
+### Progressive Repair Loop 与委派的交叉
+
+测试失败触发修复环时（见 Progressive Repair Loop）：
+- 修复环**跨 subagent**：每轮 test subagent 只回传失败特征摘要，**main 持跨轮序列**判断“失败特征是否仍在变化、是否收敛”。
+- 越界 / 不收敛由 **main 裁决** STOP/BLOCKED，**不让 dev subagent 自行 STOP**。
+- subagent 只回依据，不持收敛判；这与“决策不外包给 subagent”一致。
+
+### Delegation 反模式（MUST NOT）
+
+- ❌ 用 Workflow tool 编排 dev→test（抹掉 main 收敛 + 人工 STOP）。
+- ❌ 让 dev subagent 回传“done”而无证据载荷（等于自报告低可信）。
+- ❌ 让 test subagent 复用 dev 的“改对了”声明而不独立跑命令。
+- ❌ 让 subagent 持 task lifecycle / checkoff / STOP 裁决。
+- ❌ 并行多 checkbox（违反单责任单元推进）。
+
 ## Handoff to Verify and Archive
 
 apply 完成后至少交接以下信息：

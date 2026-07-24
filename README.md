@@ -160,6 +160,8 @@ npx claude-harness-skills --help
 
 `docs/` 下还保留了一些历史专题文档与参考资料，适合作为补充阅读，例如：
 - `Hardness-Practice.md`
+- `Context-Hygiene-Practice.md`
+- `Skill-Authoring-Guide.md`
 - `OpenSpec Change 拆分策略文档.md`
 - `ClaudeCode原语能力边界.md`
 - `OpenSpec 参考文档.md`
