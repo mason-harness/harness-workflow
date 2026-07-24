@@ -81,18 +81,18 @@ subagent 输出必须保证：
 - registration_path: single-repo | cross-repo
 - initiative_link: <store/id summary or none>
 - registered_changes:
-  - change: s01-foo
+  - change: export-feature-01-foundation   # {change-name}-{change-num}-{slice-change-name}
     goal: <one line>
     depends_on: []
     creation_mode: subagent-openspec-new-change | subagent-opsx-new | already-existed
     status: created | already-existed | linked
 - proposal_status:
-  - change: s01-foo
+  - change: export-feature-01-foundation
     state: complete | already-complete | synced-from-plan | stop-on-conflict
 - initiative_sync: synced | unchanged | stop-on-conflict | none
 - initiative_task_rows:
-  - sequence: s01
-    change: s01-foo
+  - sequence: 01
+    change: export-feature-01-foundation
     repo: <repo>
     depends_on: []
 - sequencing_hint: <archive or parallel reminder>

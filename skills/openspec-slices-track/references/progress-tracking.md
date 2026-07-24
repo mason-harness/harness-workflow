@@ -19,7 +19,7 @@
 
 显示格式：
 ```text
-✅ s01-project-bootstrap      [archived]
+✅ novel-generator-01-project-bootstrap      [archived]
 ```
 
 ### 2. in-progress
@@ -31,7 +31,7 @@
 
 显示格式：
 ```text
-🔄 s02-chapter-content-core   [5/12 tasks, 41%]
+🔄 novel-generator-02-chapter-content-core   [5/12 tasks, 41%]
 ```
 
 百分比计算：
@@ -47,7 +47,7 @@
 
 显示格式：
 ```text
-⏳ s03-rule-checking-engine   [ready, 依赖已满足]
+⏳ novel-generator-03-rule-checking-engine   [ready, 依赖已满足]
 ```
 
 ### 4. blocked
@@ -59,7 +59,7 @@
 
 显示格式：
 ```text
-🚫 s04-state-machine          [blocked, 等待 s02/s03]
+🚫 novel-generator-04-state-machine          [blocked, 等待 02/03]
 ```
 
 ## 依赖满足判定
@@ -94,13 +94,13 @@
 ┌─────────────────────────────────────────────────┐
 │     Novel Generator 切片进度（7 个切片）          │
 ├─────────────────────────────────────────────────┤
-│ ✅ s01-project-bootstrap      [archived]        │
-│ 🔄 s02-chapter-content-core   [5/12 tasks]      │
-│ ⏳ s03-rule-checking-engine   [ready]           │
-│ 🚫 s04-state-machine          [blocked by s02]  │
-│ 🚫 s05-volume-management      [blocked by s02]  │
-│ 🚫 s06-destiny-weaving        [blocked by s05]  │
-│ 🚫 s07-archive-and-export     [blocked by s04]  │
+│ ✅ novel-gen-01-project-bootstrap [archived]   │
+│ 🔄 novel-gen-02-chapter-content    [5/12 tasks]│
+│ ⏳ novel-gen-03-rule-checking-engine [ready]    │
+│ 🚫 novel-gen-04-state-machine   [blocked by 02] │
+│ 🚫 novel-gen-05-volume-management[blocked by 02]│
+│ 🚫 novel-gen-06-destiny-weaving  [blocked by 05]│
+│ 🚫 novel-gen-07-archive-and-export[blocked by 04]│
 ├─────────────────────────────────────────────────┤
 │ 📊 整体进度: 1/7 归档, 1/7 进行中               │
 └─────────────────────────────────────────────────┘
@@ -119,8 +119,8 @@
 
 ```text
 ⚠️ 计划源与当前 changes 不完全一致：
-- initiative 中声明了 s06-destiny-weaving，但 CLI 未找到
-- CLI 中存在 s08-extra-change，但不在当前计划源中
+- initiative 中声明了 novel-generator-06-destiny-weaving，但 CLI 未找到
+- CLI 中存在 novel-generator-08-extra-change，但不在当前计划源中
 ```
 
 ## 固定回答模版示例
@@ -138,26 +138,26 @@
     ┌─────────────────────────────────────────────────┐
     │     Novel Generator 切片进度（7 个切片）          │
     ├─────────────────────────────────────────────────┤
-    │ ✅ s01-project-bootstrap      [archived]        │
-    │ 🔄 s02-chapter-content-core   [5/12 tasks]      │
-    │ ⏳ s03-rule-checking-engine   [ready]           │
-    │ 🚫 s04-state-machine          [blocked by s02]  │
+    │ ✅ novel-gen-01-project-bootstrap [archived]   │
+    │ 🔄 novel-gen-02-chapter-content    [5/12 tasks]│
+    │ ⏳ novel-gen-03-rule-checking-engine [ready]    │
+    │ 🚫 novel-gen-04-state-machine   [blocked by 02] │
     └─────────────────────────────────────────────────┘
 - summary:
   - archived: 1/7
   - in_progress: 1/7
   - ready: 1/7
   - blocked: 4/7
-- recommendation: continue s02-chapter-content-core
+- recommendation: continue novel-generator-02-chapter-content-core
 - blocked_items:
-  - name: s04-state-machine
-    waiting_on: [s02, s03]
+  - name: novel-generator-04-state-machine
+    waiting_on: [02, 03]
 - consistency_check:
   - None
 
 ## Handoff
 - handoff_to: openspec-continue
-- handoff_input: s02-chapter-content-core
+- handoff_input: novel-generator-02-chapter-content-core
 - handoff_reason: 当前已有进行中的切片，优先减少上下文切换
 
 ## Next Step

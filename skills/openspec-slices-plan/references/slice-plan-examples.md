@@ -13,11 +13,12 @@
 ```yaml
 Slice Plan (user_confirmed: true)
 mode: single-repo
+change_name: request-id-logging
 initiative: null
 sequencing_rule: parallel  # 单切片，无序列依赖
 slices:
-  - sequence: "s01"
-    name: request-id-logging
+  - sequence: "01"
+    name: trace-middleware
     goal: Add request ID to API logs for traceability
     areas: []  # repo-local, 留空
     depends_on: []
@@ -36,7 +37,7 @@ slices:
 ```
 
 **登记后**：
-- `openspec new change "s01-request-id-logging" --goal "Add request ID to API logs for traceability"`
+- `openspec new change "request-id-logging-01-trace-middleware" --goal "Add request ID to API logs for traceability"`
 - 单切片，propose 快速生成 artifacts
 
 ---
@@ -50,10 +51,11 @@ slices:
 ```yaml
 Slice Plan (user_confirmed: true)
 mode: single-repo
+change_name: export-feature
 initiative: null
 sequencing_rule: archive-N-before-N+1
 slices:
-  - sequence: "s01"
+  - sequence: "01"
     name: foundation
     goal: CSV export golden path - button to download, no progress/cancel/error
     areas: []
@@ -67,54 +69,54 @@ slices:
         - 同步查询（≤1000 行）
         - 下载触发
       out:
-        - 进度条（交 s02-progress-feedback）
-        - 取消操作（交 s02）
-        - 错误提示/重试（交 s03-error-resilience）
+        - 进度条（交 export-feature-02-progress-feedback）
+        - 取消操作（交 02）
+        - 错误提示/重试（交 export-feature-03-error-resilience）
         - JSON 格式（未来 Epic）
     handoff: null
 
-  - sequence: "s02"
+  - sequence: "02"
     name: progress-feedback
     goal: Add progress bar and cancel operation to CSV export
     areas: []
-    depends_on: ["s01"]
+    depends_on: ["01"]
     context: |
-      用户导出功能的进度反馈增强。依赖 s01-foundation 已归档的 CSV 导出主路径，为后续 s03-error-resilience 提供进度状态基础。
+      用户导出功能的进度反馈增强。依赖 export-feature-01-foundation 已归档的 CSV 导出主路径，为后续 export-feature-03-error-resilience 提供进度状态基础。
     dependencies:
-      - "s01-foundation（CSV 导出主路径必须已归档）"
+      - "export-feature-01-foundation（CSV 导出主路径必须已归档）"
     scope:
       in:
         - 导出进度条（百分比 + 行数）
         - 取消操作（中断查询）
         - 进度状态持久化
       out:
-        - 错误提示/重试（交 s03-error-resilience）
+        - 错误提示/重试（交 export-feature-03-error-resilience）
         - JSON 格式（未来 Epic）
     handoff:
-      handoff_to: s03-error-resilience
+      handoff_to: export-feature-03-error-resilience
       artifacts/contracts:
         - 导出状态结构新增 `progressPercent`、`processedRows`、`cancelledAt`
         - 取消操作后不再生成下载结果，状态值必须保持 `cancelled`
       ready_signal:
-        - s02-progress-feedback 已归档，且导出状态字段已在主路径可读取
+        - export-feature-02-progress-feedback 已归档，且导出状态字段已在主路径可读取
       consumer_expectations:
-        - s03-error-resilience 可基于 `cancelled | failed | complete` 判断是否允许重试
-        - 下游不得改写 s02 已确定的状态字段语义
+        - export-feature-03-error-resilience 可基于 `cancelled | failed | complete` 判断是否允许重试
+        - 下游不得改写 02 已确定的状态字段语义
 
-  - sequence: "s03"
+  - sequence: "03"
     name: error-resilience
     goal: Add error handling and retry to CSV export
     areas: []
-    depends_on: ["s01", "s02"]
+    depends_on: ["01", "02"]
     context: |
-      用户导出功能的错误韧性增强。依赖 s01-foundation 的主路径与 s02-progress-feedback 的进度状态，为导出流程补全错误处理。
+      用户导出功能的错误韧性增强。依赖 export-feature-01-foundation 的主路径与 export-feature-02-progress-feedback 的进度状态，为导出流程补全错误处理。
     dependencies:
-      - "s01-foundation（主路径）"
-      - "s02-progress-feedback（进度状态）"
+      - "export-feature-01-foundation（主路径）"
+      - "export-feature-02-progress-feedback（进度状态）"
     scope:
       in:
         - 错误提示（网络/查询失败）
-        - 重试逻辑（读取 s02 的进度状态恢复）
+        - 重试逻辑（读取 02 的进度状态恢复）
         - 单元测试覆盖错误路径
       out:
         - JSON 格式（未来 Epic）
@@ -123,12 +125,12 @@ slices:
 ```
 
 **登记后**：
-- `openspec new change "s01-foundation" --goal "CSV export golden path ..."`
-- `openspec new change "s02-progress-feedback" --goal "Add progress bar ..."`
-- `openspec new change "s03-error-resilience" --goal "Add error handling ..."`
+- `openspec new change "export-feature-01-foundation" --goal "CSV export golden path ..."`
+- `openspec new change "export-feature-02-progress-feedback" --goal "Add progress bar ..."`
+- `openspec new change "export-feature-03-error-resilience" --goal "Add error handling ..."`
 - 每个 change 的 proposal.md Dependencies 章节含前序切片标注（由 change-process 物化 `depends_on`）
 
-**提示用户**："Archive s01 before starting s02"（仅提示，不强制）
+**提示用户**："Archive 01 before starting 02"（仅提示，不强制）
 
 ---
 
@@ -141,6 +143,7 @@ slices:
 ```yaml
 Slice Plan (user_confirmed: true)
 mode: cross-repo
+change_name: oauth-migration
 initiative:
   id: oauth-migration
   store: platform-initiatives
@@ -149,7 +152,7 @@ initiative:
   summary: Replace JWT with OAuth2.0 across auth-service, api-gateway, web-frontend for better security and SSO support
 sequencing_rule: archive-N-before-N+1
 slices:
-  - sequence: "s01"
+  - sequence: "01"
     name: auth-service-provider
     goal: Implement OAuth2.0 provider in auth-service
     areas: []  # repo-local in auth-service repo
@@ -164,8 +167,8 @@ slices:
         - 现有用户迁移脚本
         - 单元测试 + 集成测试
       out:
-        - api-gateway 集成（交 s02-gateway-client）
-        - web-frontend 登录流程（交 s03-frontend-login）
+        - api-gateway 集成（交 oauth-migration-02-gateway-client）
+        - web-frontend 登录流程（交 oauth-migration-03-frontend-login）
         - JWT 移除（交后续 Phase 2）
     handoff:
       handoff_to: api-gateway / web-frontend
@@ -173,20 +176,20 @@ slices:
         - 提供 `/oauth/token` 与授权端点契约
         - 迁移后用户账号映射规则可用于下游联调
       ready_signal:
-        - s01-auth-service-provider 已归档并在目标环境可访问
+        - oauth-migration-01-auth-service-provider 已归档并在目标环境可访问
       consumer_expectations:
-        - s02-gateway-client 只依赖已发布的 OAuth2.0 端点，不绕过到内部实现
-        - s03-frontend-login 只依赖授权流程与回调契约，不假设旧 JWT 登录仍可用
+        - oauth-migration-02-gateway-client 只依赖已发布的 OAuth2.0 端点，不绕过到内部实现
+        - oauth-migration-03-frontend-login 只依赖授权流程与回调契约，不假设旧 JWT 登录仍可用
 
-  - sequence: "s02"
+  - sequence: "02"
     name: gateway-client
     goal: Integrate OAuth2.0 client in api-gateway
     areas: []  # repo-local in api-gateway repo
-    depends_on: ["s01"]
+    depends_on: ["01"]
     context: |
-      认证系统升级 Epic 的中间层。在 api-gateway 仓库集成 OAuth2.0 client，依赖 s01-auth-service-provider 已归档的认证端点，为 s03-frontend-login 提供 token 验证能力。
+      认证系统升级 Epic 的中间层。在 api-gateway 仓库集成 OAuth2.0 client，依赖 oauth-migration-01-auth-service-provider 已归档的认证端点，为 oauth-migration-03-frontend-login 提供 token 验证能力。
     dependencies:
-      - "s01-auth-service-provider（OAuth2.0 provider 必须已归档可用）"
+      - "oauth-migration-01-auth-service-provider（OAuth2.0 provider 必须已归档可用）"
     scope:
       in:
         - OAuth2.0 client middleware
@@ -194,29 +197,29 @@ slices:
         - 与 auth-service 的 /oauth/token 对接
         - 单元测试
       out:
-        - web-frontend 登录 UI（交 s03-frontend-login）
+        - web-frontend 登录 UI（交 oauth-migration-03-frontend-login）
         - JWT 移除（交后续 Phase 2）
     handoff:
-      handoff_to: s03-frontend-login
+      handoff_to: oauth-migration-03-frontend-login
       artifacts/contracts:
         - 提供 token 验证入口 `/api/verify` 与网关侧 OAuth client 行为契约
         - 明确前端可依赖的登录回调与会话校验路径
       ready_signal:
-        - s02-gateway-client 已归档，且网关 OAuth client 已在目标环境连通 auth-service
+        - oauth-migration-02-gateway-client 已归档，且网关 OAuth client 已在目标环境连通 auth-service
       consumer_expectations:
-        - s03-frontend-login 只通过公开登录/校验入口接入，不假设网关内部中间件实现
+        - oauth-migration-03-frontend-login 只通过公开登录/校验入口接入，不假设网关内部中间件实现
         - 下游不得绕过网关直接调用 auth-service 私有流程
 
-  - sequence: "s03"
+  - sequence: "03"
     name: frontend-login
     goal: Update web-frontend login flow to use OAuth2.0
     areas: []  # repo-local in web-frontend repo
-    depends_on: ["s01", "s02"]
+    depends_on: ["01", "02"]
     context: |
-      认证系统升级 Epic 的用户入口。在 web-frontend 仓库更新登录流程使用 OAuth2.0，依赖 s01-auth-service-provider 的认证端点与 s02-gateway-client 的 token 验证。
+      认证系统升级 Epic 的用户入口。在 web-frontend 仓库更新登录流程使用 OAuth2.0，依赖 oauth-migration-01-auth-service-provider 的认证端点与 oauth-migration-02-gateway-client 的 token 验证。
     dependencies:
-      - "s01-auth-service-provider（OAuth2.0 provider）"
-      - "s02-gateway-client（token 验证）"
+      - "oauth-migration-01-auth-service-provider（OAuth2.0 provider）"
+      - "oauth-migration-02-gateway-client（token 验证）"
     scope:
       in:
         - 登录页 OAuth2.0 授权流程
@@ -232,9 +235,9 @@ slices:
 **登记后**（由 change-process 执行）：
 1. `openspec context-store setup platform-initiatives --path /shared/context-stores/platform-initiatives --init-git`
 2. `openspec initiative create oauth-migration --title "Migrate from JWT to OAuth2.0" --summary "..." --store platform-initiatives`
-3. 在 `auth-service` 仓库：`openspec new change "s01-auth-service-provider" --initiative platform-initiatives/oauth-migration --goal "..."`
-4. 在 `api-gateway` 仓库：`openspec new change "s02-gateway-client" --initiative platform-initiatives/oauth-migration --goal "..."`
-5. 在 `web-frontend` 仓库：`openspec new change "s03-frontend-login" --initiative platform-initiatives/oauth-migration --goal "..."`
+3. 在 `auth-service` 仓库：`openspec new change "oauth-migration-01-auth-service-provider" --initiative platform-initiatives/oauth-migration --goal "..."`
+4. 在 `api-gateway` 仓库：`openspec new change "oauth-migration-02-gateway-client" --initiative platform-initiatives/oauth-migration --goal "..."`
+5. 在 `web-frontend` 仓库：`openspec new change "oauth-migration-03-frontend-login" --initiative platform-initiatives/oauth-migration --goal "..."`
 
 **每个 change 的 `.openspec.yaml`** 含：
 ```yaml
@@ -248,14 +251,14 @@ initiative:
 # Tasks
 
 ## Coordination Tasks
-- [ ] s01-auth-service-provider 归档并部署到 staging
-- [ ] s02-gateway-client 归档并部署到 staging
-- [ ] s03-frontend-login 归档并部署到 staging
+- [ ] oauth-migration-01-auth-service-provider 归档并部署到 staging
+- [ ] oauth-migration-02-gateway-client 归档并部署到 staging
+- [ ] oauth-migration-03-frontend-login 归档并部署到 staging
 - [ ] E2E 验证三仓集成
 - [ ] 生产发布窗口协调
 ```
 
-**提示用户**："Archive s01 in auth-service before starting s02 in api-gateway; archive s02 before starting s03 in web-frontend"
+**提示用户**："Archive 01 in auth-service before starting 02 in api-gateway; archive 02 before starting 03 in web-frontend"
 
 ---
 
@@ -274,8 +277,8 @@ initiative:
 - initiative: null
 - sequencing_rule: parallel
 - slices:
-  - sequence: s01
-    name: request-id-logging
+  - sequence: 01
+    name: trace-middleware
     goal: Add request ID to API logs for traceability
     depends_on: []
     scope:
@@ -292,11 +295,12 @@ initiative:
 ```yaml
 Slice Plan (user_confirmed: false)
 mode: single-repo
+change_name: request-id-logging
 initiative: null
 sequencing_rule: parallel
 slices:
-  - sequence: "s01"
-    name: request-id-logging
+  - sequence: "01"
+    name: trace-middleware
     goal: Add request ID to API logs for traceability
     areas: []
     depends_on: []
@@ -342,26 +346,27 @@ slices:
 - initiative: platform-initiatives/oauth-migration
 - sequencing_rule: archive-N-before-N+1
 - slices:
-  - sequence: s01
+  - sequence: 01
     name: auth-service-provider
     goal: Implement OAuth2.0 provider in auth-service
     depends_on: []
     scope:
       in: [OAuth2.0 authorization server, token endpoint, 用户迁移]
-      out: [api-gateway 集成（交 s02）, web-frontend 登录流程（交 s03）]
+      out: [api-gateway 集成（交 02）, web-frontend 登录流程（交 03）]
     handoff: {handoff_to: api-gateway / web-frontend, artifacts/contracts: [...], ready_signal: [...], consumer_expectations: [...]}
-  - sequence: s02
+  - sequence: 02
     name: gateway-client
     goal: Integrate OAuth2.0 client in api-gateway
-    depends_on: [s01]
+    depends_on: [01]
     scope:
       in: [OAuth2.0 client middleware, token 验证]
-      out: [web-frontend 登录 UI（交 s03）]
-    handoff: {handoff_to: s03-frontend-login, artifacts/contracts: [...], ready_signal: [...], consumer_expectations: [...]}
+      out: [web-frontend 登录 UI（交 03）]
+    handoff: {handoff_to: oauth-migration-03-frontend-login, artifacts/contracts: [...], ready_signal: [...], consumer_expectations: [...]}
 - confirmation_status: user_confirmed: false
 
 ```yaml
 Slice Plan (user_confirmed: false)
+change_name: oauth-migration
 ...
 ```
 
@@ -397,9 +402,9 @@ Slice Plan (user_confirmed: false)
 - slice_strategy: vertical-business
 - rationale: 虽跨 UI / API / query，但仍属于单一项目，应该按用户可感知价值端到端切，而不是先拆 frontend/backend/db
 - example_slices:
-  - s01-export-foundation
-  - s02-export-progress
-  - s03-export-retry
+  - export-feature-01-export-foundation
+  - export-feature-02-export-progress
+  - export-feature-03-export-retry
 
 ### 验证场景 2：多项目应走技术层或仓库边界切片
 
@@ -414,9 +419,9 @@ Slice Plan (user_confirmed: false)
 - slice_strategy: repo-boundary
 - rationale: 需求天然跨 repo 与团队职责面，应该按仓库/服务边界切片，再用 depends_on 与 initiative 协调，而不是把每个业务故事横跨三个仓库
 - example_slices:
-  - s01-billing-service-oauth-provider
-  - s02-api-gateway-oauth-client
-  - s03-web-frontend-login-flow
+  - oauth-billing-01-billing-service-oauth-provider
+  - oauth-billing-02-api-gateway-oauth-client
+  - oauth-billing-03-web-frontend-login-flow
 
 ### 快速自检
 

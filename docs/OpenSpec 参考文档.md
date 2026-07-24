@@ -108,11 +108,17 @@ Change 名称必须符合 kebab-case：
 - 允许：小写字母、数字、连字符
 - 不允许：大写字母、下划线、首尾连字符
 
-常见命名示例：
+切片类 change 采用三段命名 `{change-name}-{change-num}-{slice-change-name}`：
 
-- `s01-foundation`
-- `s02-normal-flow`
-- `s03-retry-guard`
+- `change-name`：父批次名，同批次所有切片共享
+- `change-num`：两位序号 `01`/`02`/...，按依赖顺序递增
+- `slice-change-name`：切片描述名
+
+常见命名示例（父批次 `export-feature`）：
+
+- `export-feature-01-foundation`
+- `export-feature-02-normal-flow`
+- `export-feature-03-retry-guard`
 
 ---
 

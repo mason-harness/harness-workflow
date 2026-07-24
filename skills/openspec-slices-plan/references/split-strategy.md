@@ -1,6 +1,6 @@
 # Change 拆分策略
 
-本文档提供 Change 拆分的决策树、按项目形态选择切片维度的原则、Wrong/Right 示例、序号前缀管理、progressive 拆分策略、Proposal storyline 机制、Initiative 跨仓协作与 workspace-change 限制。
+本文档提供 Change 拆分的决策树、按项目形态选择切片维度的原则、Wrong/Right 示例、切片命名规则、progressive 拆分策略、Proposal storyline 机制、Initiative 跨仓协作与 workspace-change 限制。
 
 ## 拆分决策树
 
@@ -51,10 +51,10 @@
 #### ❌ Wrong: 在单一项目里按技术层横切
 
 ```
-01-frontend-ui        # 导出按钮 + 弹窗 UI（后端接口未对接，点击无反应）
-02-backend-api        # /api/export 接口（frontend 未调用，孤立）
-03-database-query     # 优化导出 SQL（无人调用）
-04-error-handling     # 错误边界（依赖前三者全完成）
+export-feature-01-frontend-ui        # 导出按钮 + 弹窗 UI（后端接口未对接，点击无反应）
+export-feature-02-backend-api        # /api/export 接口（frontend 未调用，孤立）
+export-feature-03-database-query     # 优化导出 SQL（无人调用）
+export-feature-04-error-handling     # 错误边界（依赖前三者全完成）
 ```
 
 **问题**：
@@ -66,9 +66,9 @@
 #### ✅ Right: 在单一项目里做垂直业务切片
 
 ```
-01-foundation         # CSV 导出主路径（按钮 → API → 查询 → 下载），golden path，无进度/取消/错误
-02-progress-feedback  # 进度条 + 取消操作（依赖 01 的主路径，增强体验）
-03-error-resilience   # 错误提示 + 重试（依赖 01/02，最后增强健壮性）
+export-feature-01-foundation         # CSV 导出主路径（按钮 → API → 查询 → 下载），golden path，无进度/取消/错误
+export-feature-02-progress-feedback  # 进度条 + 取消操作（依赖 01 的主路径，增强体验）
+export-feature-03-error-resilience   # 错误提示 + 重试（依赖 01/02，最后增强健壮性）
 ```
 
 **优点**：
@@ -84,9 +84,9 @@
 #### ❌ Wrong: 强行按单一业务故事竖切
 
 ```
-01-login-story        # 同时改 web-frontend / api-gateway / auth-service
-02-session-story      # 再同时改三个仓库
-03-permission-story   # 继续跨三个仓库
+oauth-migration-01-login-story        # 同时改 web-frontend / api-gateway / auth-service
+oauth-migration-02-session-story      # 再同时改三个仓库
+oauth-migration-03-permission-story   # 继续跨三个仓库
 ```
 
 **问题**：
@@ -97,9 +97,9 @@
 #### ✅ Right: 按技术层或仓库边界切片
 
 ```
-01-auth-service-provider   # auth-service 提供 OAuth provider
-02-gateway-client          # api-gateway 对接 OAuth client
-03-frontend-login          # web-frontend 更新登录流程
+oauth-migration-01-auth-service-provider   # auth-service 提供 OAuth provider
+oauth-migration-02-gateway-client          # api-gateway 对接 OAuth client
+oauth-migration-03-frontend-login          # web-frontend 更新登录流程
 ```
 
 **优点**：
@@ -107,7 +107,7 @@
 - `depends_on` 能准确表达服务链依赖
 - 更适合 cross-repo initiative、归档顺序与跨团队协作
 
-**context / dependencies / scope 示例**（01-foundation）：
+**context / dependencies / scope 示例**（export-feature-01-foundation）：
 
 ```yaml
 context: |
@@ -120,37 +120,38 @@ scope:
     - 同步查询（小数据集，≤1000 行）
     - 下载触发
   out:
-    - 进度条（交 02-progress-feedback）
+    - 进度条（交 export-feature-02-progress-feedback）
     - 取消操作（交 02）
-    - 错误提示/重试（交 03-error-resilience）
+    - 错误提示/重试（交 export-feature-03-error-resilience）
     - JSON 格式（未来 Epic）
     - 异步导出/大数据集分页（未来 Epic）
 ```
 
-## 序号前缀管理
+## 切片命名规则
 
-单仓多切片场景，用**两位序号前缀** + kebab-case 名称管理依赖顺序：
+单仓多切片场景，change 名采用 **`{change-name}-{change-num}-{slice-change-name}`** 三段式管理依赖顺序：
 
 ```
 openspec/changes/
-  01-foundation/
+  export-feature-01-foundation/
     .openspec.yaml
     proposal.md
     ...
-  02-progress-feedback/
-    .openspec.yaml      # 可在此注明 "Depends: 01-foundation must be archived first"
+  export-feature-02-progress-feedback/
+    .openspec.yaml      # 可在此注明 "Depends: export-feature-01-foundation must be archived first"
     proposal.md
     ...
-  03-error-resilience/
+  export-feature-03-error-resilience/
     .openspec.yaml
     proposal.md
     ...
 ```
 
 **命名规则**：
-- 序号：`01`/`02`/...，两位数字，按依赖顺序递增
-- 名称：kebab-case，简明扼要（≤30 字符）
-- 合成：`openspec new change "01-foundation"` / `"02-progress-feedback"`
+- `change-name`：父批次名，kebab-case，同批次所有切片共享（如 `export-feature`）
+- `change-num`：两位序号 `01`/`02`/...，按依赖顺序递增
+- `slice-change-name`：切片描述名，kebab-case，简明扼要（≤30 字符）
+- 合成：`openspec new change "export-feature-01-foundation"` / `"export-feature-02-progress-feedback"`；三段拼接后整体须通过 kebab-case 校验
 
 **依赖标注**：每个切片的 `depends_on` 字段列前序序号（如 `["01"]`），由 `openspec-slices-register` 物化进 proposal.md 的 Dependencies 章节。
 
@@ -171,7 +172,7 @@ openspec/changes/
 **判定过度拆分**：
 - 切片数 >5 且每切片 <50 行 → 考虑合并
 - 切片间存在频繁交叉调用（非清晰依赖链）→ 合并
-- 管理成本（序号维护、handoff 协调）超开发成本 → 合并
+- 管理成本（切片命名维护、handoff 协调）超开发成本 → 合并
 
 **判定拆分不足**：
 - 单 Change tasks >50 项 → 检查可否独立为子 Change
@@ -187,15 +188,15 @@ openspec/changes/
 3. **Scope（坚决不做啥）**：in（本次做）/ out（本次坚决不做，交给谁）
 4. **Handoff（下游能依赖什么）**：仅在存在真实跨切片契约时填写，说明交给谁、交付什么、ready signal 与 consumer expectations
 
-**示例**（02-progress-feedback 的 proposal.md 片段）：
+**示例**（export-feature-02-progress-feedback 的 proposal.md 片段）：
 
 ```markdown
 ## Context
-用户导出功能的进度反馈增强。属于"数据导出 Epic"，依赖 01-foundation 已归档的 CSV 导出主路径，为后续 03-error-resilience 提供进度状态基础。
+用户导出功能的进度反馈增强。属于"数据导出 Epic"，依赖 export-feature-01-foundation 已归档的 CSV 导出主路径，为后续 export-feature-03-error-resilience 提供进度状态基础。
 
 ## Dependencies
-- **Depends on**: 01-foundation（CSV 导出主路径必须已归档并可用）
-- **Blocks**: 03-error-resilience（错误处理依赖本切片的进度状态）
+- **Depends on**: export-feature-01-foundation（CSV 导出主路径必须已归档并可用）
+- **Blocks**: export-feature-03-error-resilience（错误处理依赖本切片的进度状态）
 - **External**: 无
 
 ## Scope
@@ -205,7 +206,7 @@ openspec/changes/
 - 进度状态持久化（供 03 错误重试读取）
 
 ### Out（本次坚决不做）
-- 错误提示/重试逻辑（交 03-error-resilience）
+- 错误提示/重试逻辑（交 export-feature-03-error-resilience）
 - JSON 格式导出（未来 Epic）
 - 异步导出/大数据集分页（未来 Epic）
 ```
@@ -233,7 +234,7 @@ openspec/changes/
 ### 过度拆分（应合并）
 - [ ] 切片数 >5 且每切片代码 <50 行
 - [ ] 切片间存在频繁交叉调用（非清晰依赖链）
-- [ ] 序号前缀管理成本 + handoff 协调时间超开发时间
+- [ ] 切片命名维护成本 + handoff 协调时间超开发时间
 - [ ] 单切片无法独立验证/测试（过细粒度）
 
 ### 拆分不足（应拆分）

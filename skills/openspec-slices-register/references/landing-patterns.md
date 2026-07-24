@@ -11,10 +11,11 @@
 **输入**（Slice Plan 片段）：
 ```yaml
 mode: single-repo
+change_name: export-feature
 initiative: null
 sequencing_rule: archive-N-before-N+1
 slices:
-  - sequence: "s01"
+  - sequence: "01"
     name: foundation
     goal: CSV export golden path
     depends_on: []
@@ -22,16 +23,16 @@ slices:
     dependencies: []
     scope:
       in: [CSV 格式导出, 同步查询, 下载触发]
-      out: [进度条（交 s02）, 取消操作（交 s02）]
-  - sequence: "s02"
+      out: [进度条（交 02）, 取消操作（交 02）]
+  - sequence: "02"
     name: progress-feedback
     goal: Add progress bar and cancel
-    depends_on: ["s01"]
-    context: "进度反馈增强。依赖 s01-foundation 已归档。"
-    dependencies: ["s01-foundation（必须已归档）"]
+    depends_on: ["01"]
+    context: "进度反馈增强。依赖 export-feature-01-foundation 已归档。"
+    dependencies: ["export-feature-01-foundation（必须已归档）"]
     scope:
       in: [进度条, 取消操作]
-      out: [错误处理（交 s03）]
+      out: [错误处理（交 03）]
 ```
 
 **执行步骤**：
@@ -46,8 +47,8 @@ slices:
 5. **输出结果**：
    ```
    已登记切片（single-repo）：
-   - s01-foundation: CSV export golden path
-   - s02-progress-feedback: Add progress bar and cancel (depends on s01)
+   - export-feature-01-foundation: CSV export golden path
+   - export-feature-02-progress-feedback: Add progress bar and cancel (depends on 01)
 
    proposal.md 已在登记阶段完成
    下一步：对第一个 ready change 继续下一个 artifact
@@ -56,21 +57,21 @@ slices:
 ### 推荐 subagent 提示词（single-repo）
 
 ```text
-为 slice s02-progress-feedback 执行 OpenSpec change 创建。
+为 slice export-feature-02-progress-feedback 执行 OpenSpec change 创建。
 优先调用技能 openspec-new-change；若不可用则调用命令 /opsx:new。
-change 名称必须是 s02-progress-feedback，goal 是 "Add progress bar and cancel"。
-创建或确认 change 后，立即完成 openspec/changes/s02-progress-feedback/proposal.md，至少写完：Goal、Context、Dependencies、Scope、Requirements、Assumptions、Non-Goals。
+change 名称必须是 export-feature-02-progress-feedback（{change-name}-{change-num}-{slice-change-name} = export-feature + 02 + progress-feedback），goal 是 "Add progress bar and cancel"。
+创建或确认 change 后，立即完成 openspec/changes/export-feature-02-progress-feedback/proposal.md，至少写完：Goal、Context、Dependencies、Scope、Requirements、Assumptions、Non-Goals。
 Context / Dependencies / Scope / Handoff 必须严格来自以下 Slice Plan：
-- context: 用户导出功能的进度反馈增强。属于"数据导出 Epic"，依赖 s01-foundation 已归档的 CSV 导出主路径。
-- depends_on: s01-foundation
-- dependencies: s01-foundation（必须已归档）
+- context: 用户导出功能的进度反馈增强。属于"数据导出 Epic"，依赖 export-feature-01-foundation 已归档的 CSV 导出主路径。
+- depends_on: export-feature-01-foundation
+- dependencies: export-feature-01-foundation（必须已归档）
 - scope.in: 导出进度条、取消操作
-- scope.out: 错误处理（交 s03）
+- scope.out: 错误处理（交 03）
 - handoff:
-  - handoff_to: s03-error-resilience
+  - handoff_to: export-feature-03-error-resilience
   - artifacts/contracts: 导出状态结构新增 `progressPercent`、`processedRows`、`cancelledAt`；取消操作后状态值必须保持 `cancelled`
-  - ready_signal: s02-progress-feedback 已归档，且导出状态字段已在主路径可读取
-  - consumer_expectations: s03-error-resilience 可基于 `cancelled | failed | complete` 判断是否允许重试；不得改写 s02 已确定的状态字段语义
+  - ready_signal: export-feature-02-progress-feedback 已归档，且导出状态字段已在主路径可读取
+  - consumer_expectations: export-feature-03-error-resilience 可基于 `cancelled | failed | complete` 判断是否允许重试；不得改写 02 已确定的状态字段语义
 若 Slice Plan.handoff 为对象，必须在 `proposal.md` 写非空 `## Handoff`，并直接物化其四个字段；若为 `null`，不得为了“完整”臆造 `## Handoff`。
 禁止保留 TODO、TBD、空章节、或只写 stub 后交给 propose。
 完成后返回：change 是否创建成功、调用方式、proposal 是否完整、`Handoff` 是否与 Slice Plan.handoff 一致、是否发现冲突。
@@ -85,6 +86,7 @@ Context / Dependencies / Scope / Handoff 必须严格来自以下 Slice Plan：
 **输入**（Slice Plan 片段）：
 ```yaml
 mode: cross-repo
+change_name: oauth-migration
 initiative:
   id: oauth-migration
   store: platform-initiatives
@@ -93,7 +95,7 @@ initiative:
   summary: Replace JWT with OAuth2.0 for better security
 sequencing_rule: archive-N-before-N+1
 slices:
-  - sequence: "s01"
+  - sequence: "01"
     name: auth-service-provider
     goal: Implement OAuth2.0 provider in auth-service
     depends_on: []
@@ -101,26 +103,26 @@ slices:
     dependencies: []
     scope:
       in: [OAuth2.0 authorization server, token endpoint, 用户迁移]
-      out: [api-gateway 集成（交 s02）, frontend 登录（交 s03）]
+      out: [api-gateway 集成（交 02）, frontend 登录（交 03）]
     handoff:
       handoff_to: api-gateway / web-frontend
       artifacts/contracts: ["/oauth/token 契约", "用户迁移映射规则"]
-      ready_signal: ["s01 已归档并在目标环境可访问"]
-      consumer_expectations: ["s02 只依赖已发布端点", "s03 只依赖授权流程与回调契约"]
-  - sequence: "s02"
+      ready_signal: ["01 已归档并在目标环境可访问"]
+      consumer_expectations: ["02 只依赖已发布端点", "03 只依赖授权流程与回调契约"]
+  - sequence: "02"
     name: gateway-client
     goal: Integrate OAuth2.0 client in api-gateway
-    depends_on: ["s01"]
-    context: "中间层。在 api-gateway 集成 OAuth2.0 client，依赖 s01 已归档。"
-    dependencies: ["s01-auth-service-provider（必须已归档）"]
+    depends_on: ["01"]
+    context: "中间层。在 api-gateway 集成 OAuth2.0 client，依赖 01 已归档。"
+    dependencies: ["oauth-migration-01-auth-service-provider（必须已归档）"]
     scope:
       in: [OAuth2.0 client middleware, token 验证]
-      out: [frontend 登录（交 s03）]
+      out: [frontend 登录（交 03）]
     handoff:
-      handoff_to: s03-frontend-login
+      handoff_to: oauth-migration-03-frontend-login
       artifacts/contracts: ["/api/verify 契约", "登录回调与会话校验路径"]
-      ready_signal: ["s02 已归档，且网关 OAuth client 已连通 auth-service"]
-      consumer_expectations: ["s03 只通过公开登录/校验入口接入", "不得绕过网关直接调用 auth-service 私有流程"]
+      ready_signal: ["02 已归档，且网关 OAuth client 已连通 auth-service"]
+      consumer_expectations: ["03 只通过公开登录/校验入口接入", "不得绕过网关直接调用 auth-service 私有流程"]
 ```
 
 **执行步骤**：
@@ -151,8 +153,8 @@ slices:
 6. **输出结果**：
    ```
    已登记切片（cross-repo, initiative: platform-initiatives/oauth-migration）：
-   - s01-auth-service-provider (auth-service): Implement OAuth2.0 provider
-   - s02-gateway-client (api-gateway): Integrate OAuth2.0 client (depends on s01)
+   - oauth-migration-01-auth-service-provider (auth-service): Implement OAuth2.0 provider
+   - oauth-migration-02-gateway-client (api-gateway): Integrate OAuth2.0 client (depends on 01)
 
    proposal.md 已在登记阶段完成
    下一步：按 ready 状态继续后续 artifact
@@ -216,7 +218,7 @@ slices:
 
 以下情况**不需要**独立交接文档，也不强制写 `Handoff`：
 
-- 只有“先归档 s01 再开始 s02”这类顺序依赖
+- 只有“先归档 01 再开始 02”这类顺序依赖
 - `scope.out` 只是说明“这个内容留给下一片”，但没有可消费契约
 - 当前切片对下游没有新增显式接口或操作要求
 
@@ -234,22 +236,22 @@ slices:
 
 ## 完整 proposal.md 示例
 
-**场景**：切片 `s02-progress-feedback`（single-repo）
+**场景**：切片 `export-feature-02-progress-feedback`（single-repo）
 
 ```markdown
-# s02-progress-feedback
+# export-feature-02-progress-feedback
 
 ## Goal
 Add progress bar and cancel operation to CSV export.
 
 ## Context
 <!-- from slice plan, completed during registration -->
-用户导出功能的进度反馈增强。属于“数据导出 Epic”的第二个切片，依赖 s01-foundation 已归档的 CSV 导出主路径，为后续错误处理与重试能力提供进度状态基础。
+用户导出功能的进度反馈增强。属于“数据导出 Epic”的第二个切片，依赖 export-feature-01-foundation 已归档的 CSV 导出主路径，为后续错误处理与重试能力提供进度状态基础。
 
 ## Dependencies
 <!-- from slice plan, completed during registration -->
-- **Depends on**: s01-foundation（CSV 导出主路径必须已归档并可用）
-- **Blocks**: s03-error-resilience（错误提示与重试依赖本切片暴露的进度状态）
+- **Depends on**: export-feature-01-foundation（CSV 导出主路径必须已归档并可用）
+- **Blocks**: export-feature-03-error-resilience（错误提示与重试依赖本切片暴露的进度状态）
 - **External**: 无
 
 ## Scope
@@ -261,7 +263,7 @@ Add progress bar and cancel operation to CSV export.
 - 进度状态持久化（供后续错误重试读取）
 
 ### Out（本次不做）
-- 错误提示/重试逻辑（交 s03-error-resilience）
+- 错误提示/重试逻辑（交 export-feature-03-error-resilience）
 - JSON 格式导出（未来 Epic）
 - 异步导出/大数据集分页（未来 Epic）
 
@@ -269,10 +271,10 @@ Add progress bar and cancel operation to CSV export.
 - 导出开始后，界面必须在可感知的时间内显示进度状态。
 - 取消操作必须停止本次导出，不得继续生成下载结果。
 - 进度状态字段必须足够让后续切片判断导出是否完成、取消或失败。
-- 本切片不得改变 s01 已确定的 CSV 文件格式与下载入口。
+- 本切片不得改变 01 已确定的 CSV 文件格式与下载入口。
 
 ## Assumptions
-- s01-foundation 已提供可调用的导出主路径。
+- export-feature-01-foundation 已提供可调用的导出主路径。
 - 当前导出仍以同步流程为主，不引入异步任务编排。
 - 本切片允许在现有导出状态结构上增加进度字段。
 
@@ -282,15 +284,15 @@ Add progress bar and cancel operation to CSV export.
 - 不解决超大数据集的后台异步导出问题。
 
 ## Handoff
-- **handoff_to**: s03-error-resilience
+- **handoff_to**: export-feature-03-error-resilience
 - **artifacts/contracts**:
   - 导出状态结构新增 `progressPercent`、`processedRows`、`cancelledAt`
   - 取消操作后不再生成下载结果，状态值必须保持 `cancelled`
 - **ready_signal**:
-  - s02 已归档，且导出状态字段已在主路径可读取
+  - 02 已归档，且导出状态字段已在主路径可读取
 - **consumer_expectations**:
-  - s03 可基于 `cancelled | failed | complete` 判断是否允许重试
-  - s03 不得改写 s02 已确定的状态字段语义
+  - 03 可基于 `cancelled | failed | complete` 判断是否允许重试
+  - 03 不得改写 02 已确定的状态字段语义
 ```
 
 ---
@@ -315,7 +317,7 @@ Add progress bar and cancel operation to CSV export.
 
 ```md
 ## Warnings
-- proposal conflict: existing proposal.md for s02-progress-feedback diverges from confirmed Slice Plan; manual confirmation required before overwrite
+- proposal conflict: existing proposal.md for export-feature-02-progress-feedback diverges from confirmed Slice Plan; manual confirmation required before overwrite
 ```
 
 ---
@@ -343,22 +345,22 @@ Add progress bar and cancel operation to CSV export.
 - registration_path: single-repo
 - initiative_link: none
 - registered_changes:
-  - change: s01-foundation
+  - change: export-feature-01-foundation
     goal: CSV export golden path
     depends_on: []
     creation_mode: subagent-openspec-new-change
     status: created
-  - change: s02-progress-feedback
+  - change: export-feature-02-progress-feedback
     goal: Add progress bar and cancel
-    depends_on: [s01]
+    depends_on: [01]
     creation_mode: subagent-opsx-new
     status: created
 - proposal_status:
-  - change: s01-foundation
+  - change: export-feature-01-foundation
     state: complete
-  - change: s02-progress-feedback
+  - change: export-feature-02-progress-feedback
     state: complete
-- sequencing_hint: Archive s01 before starting s02
+- sequencing_hint: Archive 01 before starting 02
 
 ## Handoff
 - handoff_to: openspec-continue
@@ -366,7 +368,7 @@ Add progress bar and cancel operation to CSV export.
 - handoff_reason: proposal is already complete; downstream artifacts can continue directly
 
 ## Next Step
-- recommended_action: continue with the next artifact for s01-foundation first
+- recommended_action: continue with the next artifact for export-feature-01-foundation first
 - requires_user_confirmation: no
 
 ## Warnings
@@ -385,22 +387,22 @@ Add progress bar and cancel operation to CSV export.
 - registration_path: cross-repo
 - initiative_link: platform-initiatives/oauth-migration
 - registered_changes:
-  - change: s01-auth-service-provider
+  - change: oauth-migration-01-auth-service-provider
     goal: Implement OAuth2.0 provider in auth-service
     depends_on: []
     creation_mode: subagent-openspec-new-change
     status: created
-  - change: s02-gateway-client
+  - change: oauth-migration-02-gateway-client
     goal: Integrate OAuth2.0 client in api-gateway
-    depends_on: [s01]
+    depends_on: [01]
     creation_mode: subagent-openspec-new-change
     status: created
 - proposal_status:
-  - change: s01-auth-service-provider
+  - change: oauth-migration-01-auth-service-provider
     state: complete
-  - change: s02-gateway-client
+  - change: oauth-migration-02-gateway-client
     state: complete
-- sequencing_hint: Archive s01 in auth-service before starting s02 in api-gateway
+- sequencing_hint: Archive 01 in auth-service before starting 02 in api-gateway
 
 ## Handoff
 - handoff_to: openspec-continue
@@ -408,7 +410,7 @@ Add progress bar and cancel operation to CSV export.
 - handoff_reason: proposal is already complete; downstream artifacts can continue directly
 
 ## Next Step
-- recommended_action: continue with the next artifact for s01-auth-service-provider before opening s02 work
+- recommended_action: continue with the next artifact for oauth-migration-01-auth-service-provider before opening 02 work
 - requires_user_confirmation: no
 
 ## Warnings

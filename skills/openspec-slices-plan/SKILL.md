@@ -20,7 +20,7 @@ description: Use when a request is too large for one Change, needs slice strateg
 | **从 explore 衔入** | 读取 explore 结晶结果或用户需求，确认范围与现有行为 |
 | **判该不该拆** | 单一责任单元 + 文件 ≤5 + 代码 ≤150 行 → 单切片；否则拆分 |
 | **判项目形态** | 单一项目/单仓 → 优先垂直业务切片；多项目/多仓分离 → 可按技术层或仓库边界切 |
-| **生成切片与序号** | `sNN-` 前缀 + kebab-case，定义 goal / depends_on / scope |
+| **生成切片与序号** | `{change-name}-{change-num}-{slice-change-name}` 命名 + kebab-case，定义 goal / depends_on / scope |
 | **确定模式** | 单仓 → `single-repo`；跨仓/多团队 → `cross-repo` + initiative |
 | **请求确认** | 输出固定模版；未确认不得交给 register |
 | **交接** | 仅把已确认 Slice Plan 交 `openspec-slices-register` |
@@ -57,7 +57,7 @@ description: Use when a request is too large for one Change, needs slice strateg
 1. **接收上下文** — 从 `openspec-explore` 结晶结果或用户需求读取目标范围与现有行为；运行 `openspec list --json` 避免重复；范围不清或来源冲突时 STOP。
 2. **判断是否需要拆分** — 单一责任单元 + 文件影响 ≤5 + 代码 ≤150 行 → 单切片；否则进入拆分。详见 `references/split-strategy.md`。
 3. **判断项目形态并选维度** — 单一项目/单仓优先按用户可感知价值做垂直业务切片；若需求天然跨多个项目、仓库或职责面（如前端 / 后端 / 数据库分离交付），可按技术层或仓库边界切，但每片必须有清晰 owner 与依赖。
-4. **生成切片与序号** — 每切片使用 `sNN-` 序号前缀 + kebab-case 命名；定义 `goal`、`areas`、`depends_on`。
+4. **生成切片与序号** — 每切片使用 `{change-name}-{change-num}-{slice-change-name}` 命名：`change-name` 为本批次的父批次名（同批次所有切片共享），`change-num` 为两位序号 `01`/`02`/...（按依赖顺序递增），`slice-change-name` 为切片描述名；三段均为 kebab-case。定义 `goal`、`areas`、`depends_on`。
 5. **依赖序列** — 选择 `sequencing_rule`：`archive-N-before-N+1` / `parallel` / `merge-first-split-later`。
 6. **判断单仓 vs 跨仓** — 跨仓/多团队协作 → `cross-repo` + initiative；单仓 → `single-repo`；workspace 冲突时 STOP。
 7. **起草骨架** — 为每切片起草 `context`、`dependencies`、`scope`，并判断是否存在需要下游显式消费的 `handoff` 契约；`cross-repo` 时还要声明后续将由 initiative `tasks.md` 承接切片索引、依赖与 repo/change 映射；只定义边界，不落盘任何文件。
@@ -76,6 +76,7 @@ description: Use when a request is too large for one Change, needs slice strateg
 ```yaml
 Slice Plan (user_confirmed: true)
 mode: single-repo | cross-repo
+change_name: <kebab>  # 父批次名，同批次所有切片共享，用于合成 change 名
 initiative:
   id: <kebab>
   store: <kebab>
@@ -84,13 +85,13 @@ initiative:
   summary: <one line>
 sequencing_rule: archive-N-before-N+1 | parallel | merge-first-split-later
 slices:
-  - sequence: "s01"
-    name: <kebab>
+  - sequence: "01"           # 两位序号，按依赖顺序递增；不再带 s 前缀
+    name: <kebab>             # 切片描述名
     goal: <one line>
     areas: [backend, db]
-    depends_on: []
+    depends_on: []            # 列前序 sequence（如 ["01"]）
     context: <1-2 行故事线定位>
-    dependencies: [<前序 sequence / 外部依赖>]
+    dependencies: [<前序 change 名 / 外部依赖>]
     scope: { in: [...], out: [...] }
     handoff: null | {
       handoff_to: <downstream slice or repo/team>
@@ -99,6 +100,8 @@ slices:
       consumer_expectations: [<what downstream may rely on and must not change>]
     }
 ```
+
+**change 名合成规则**：`{change_name}-{sequence}-{name}`（如 `change_name=export-feature` + `sequence=01` + `name=foundation` → `export-feature-01-foundation`）。`change_name` 在批次内唯一，`sequence` 与 `name` 共同区分各切片；合成名必须整体通过 kebab-case 校验。
 
 完整 few-shot 示例见 `references/slice-plan-examples.md`。
 
@@ -119,7 +122,7 @@ slices:
 - initiative: <initiative summary or null>
 - sequencing_rule: <rule>
 - slices:
-  - sequence: s01
+  - sequence: 01
     name: <kebab>
     goal: <one line>
     depends_on: []
@@ -131,6 +134,7 @@ slices:
 
 ```yaml
 Slice Plan (user_confirmed: true|false)
+change_name: <kebab>
 ...
 ```
 
@@ -174,5 +178,5 @@ Slice Plan (user_confirmed: true|false)
 
 ## References
 
-- **references/split-strategy.md**：拆分决策树、按项目形态选择切片维度的 Wrong/Right 示例、序号前缀目录、merge-first-split-later、Proposal storyline 策略、Initiative 机制与 workspace-change 限制
+- **references/split-strategy.md**：拆分决策树、按项目形态选择切片维度的 Wrong/Right 示例、切片命名规则、merge-first-split-later、Proposal storyline 策略、Initiative 机制与 workspace-change 限制
 - **references/slice-plan-examples.md**：完整 Slice Plan few-shot 与固定回答模版示例

@@ -147,9 +147,9 @@ error-handling
 #### 更推荐的拆法
 
 ```text
-s01-export-foundation
-s02-export-progress
-s03-export-retry
+export-feature-01-export-foundation
+export-feature-02-export-progress
+export-feature-03-export-retry
 ```
 
 这种拆法的好处是：
@@ -167,9 +167,9 @@ s03-export-retry
 #### 不推荐的拆法
 
 ```text
-01-login-story
-02-session-story
-03-permission-story
+oauth-billing-01-login-story
+oauth-billing-02-session-story
+oauth-billing-03-permission-story
 ```
 
 这种拆法的问题通常是：
@@ -180,9 +180,9 @@ s03-export-retry
 #### 更推荐的拆法
 
 ```text
-s01-auth-provider
-s02-gateway-integration
-s03-frontend-login
+oauth-migration-01-auth-provider
+oauth-migration-02-gateway-integration
+oauth-migration-03-frontend-login
 ```
 
 这种拆法的优势是：

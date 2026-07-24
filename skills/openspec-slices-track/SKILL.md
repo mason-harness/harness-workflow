@@ -93,8 +93,8 @@ description: Use when a multi-slice OpenSpec plan already exists and someone nee
   - blocked: 0/0
 - recommendation: <continue X | start Y | all archived>
 - blocked_items:
-  - name: s03-foo
-    waiting_on: [s01, s02]
+  - name: novel-generator-03-foo      # {change-name}-{change-num}-{slice-change-name}
+    waiting_on: [01, 02]
 - consistency_check:
   - <initiative/CLI mismatch, memory/CLI mismatch, initiative/memory mismatch, or none>
 

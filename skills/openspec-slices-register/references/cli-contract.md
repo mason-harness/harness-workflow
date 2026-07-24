@@ -82,15 +82,17 @@ openspec new change <name> --goal <g> --areas <a1,a2> --initiative <id> --store 
 **输出**（`--json`）：
 ```json
 {
-  "change_name": "01-foundation",
+  "change_name": "export-feature-01-foundation",
   "schema_name": "repo-local-change",
   "created_files": [
-    "openspec/changes/01-foundation/.openspec.yaml",
-    "openspec/changes/01-foundation/proposal.md"
+    "openspec/changes/export-feature-01-foundation/.openspec.yaml",
+    "openspec/changes/export-feature-01-foundation/proposal.md"
   ],
   "status": []
 }
 ```
+
+> 说明：上例 `change_name` 为 `openspec-slices-plan` 定义的切片命名 `{change-name}-{change-num}-{slice-change-name}` 的一个具体实例。CLI 本身只强制 kebab-case（见 §4），不约束三段结构；三段命名是 skill 层约定，由 plan 生成、register 登记时照搬。
 
 **幂等性**：change 已存在时返回错误（非 JSON 时输出 "Change '<name>' already exists"）；`openspec-slices-register` 捕获此错误视为成功（幂等）。
 
@@ -211,7 +213,8 @@ const remaining = total - complete;
 - `openspec new change "my-change"` → 成功
 
 **openspec-slices-register 校验**：
-- Slice Plan 的 `slices[].name` 必须符合 kebab-case
+- Slice Plan 的 `slices[].name`（切片描述名，第三段）必须符合 kebab-case
+- `change_name`（父批次名，第一段）与 `sequence`（`01`/`02`...，第二段）拼接出的完整 change 名 `{change_name}-{sequence}-{name}` 也必须整体通过 kebab-case 校验
 - 不符合 → STOP 退回 change-slice
 
 ---

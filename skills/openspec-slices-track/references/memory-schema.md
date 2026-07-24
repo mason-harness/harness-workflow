@@ -27,13 +27,13 @@ Novel Generator 切片方案（7 个切片）。
 **Sequencing Rule:** archive-N-before-N+1
 
 **Slices:**
-- s01-project-bootstrap: []
-- s02-chapter-content-core: [s01-project-bootstrap]
-- s03-rule-checking-engine: [s01-project-bootstrap, s02-chapter-content-core]
-- s04-state-machine-and-verdicts: [s02-chapter-content-core, s03-rule-checking-engine]
-- s05-volume-management: [s02-chapter-content-core]
-- s06-destiny-weaving: [s05-volume-management]
-- s07-archive-and-export: [s04-state-machine-and-verdicts, s05-volume-management, s06-destiny-weaving]
+- novel-generator-01-project-bootstrap: []
+- novel-generator-02-chapter-content-core: [novel-generator-01-project-bootstrap]
+- novel-generator-03-rule-checking-engine: [novel-generator-01-project-bootstrap, novel-generator-02-chapter-content-core]
+- novel-generator-04-state-machine-and-verdicts: [novel-generator-02-chapter-content-core, novel-generator-03-rule-checking-engine]
+- novel-generator-05-volume-management: [novel-generator-02-chapter-content-core]
+- novel-generator-06-destiny-weaving: [novel-generator-05-volume-management]
+- novel-generator-07-archive-and-export: [novel-generator-04-state-machine-and-verdicts, novel-generator-05-volume-management, novel-generator-06-destiny-weaving]
 ```
 
 ## 最小必需字段
