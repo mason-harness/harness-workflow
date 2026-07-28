@@ -16,11 +16,11 @@
 OpenSpec CLI 相关精确契约应以：
 - `skills/openspec-slices-register/references/cli-contract.md`
 
-为准。该契约文件记录了 `context-store`、`initiative`、`new change`、`set change` 等命令的精确语法、限制与行为边界。
+为准。该契约文件记录了 slice 技能实际使用的命令（`init`、`new change`、`list`、`status`、`validate` 等）的精确语法、限制与行为边界；另记录 `context-store`、`initiative`、`set change`、`workspace setup` 等 slice 技能不再使用的命令，仅备 CLI 全貌。
 
 在本仓库的长期知识中，只保留以下稳定结论：
 - CLI 契约需要以明确参考文件为准，不能凭印象写入工作文档。
-- `openspec-slices-register` 依赖这份契约来约束 change 登记行为。
+- `openspec-slices-register` 依赖这份契约来约束 change 登记行为；slice 技能统一走单工作空间 repo-local 流，不使用 context-store / initiative / `--initiative`。
 - 任何具体命令语法更新时，应优先更新契约参考文件，而不是在多个知识文档中散落副本。
 
 ## 与 Hook 的接线

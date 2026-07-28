@@ -2,25 +2,27 @@
 
 本文档提供 3 个完整 Slice Plan few-shot 示例，涵盖：单仓单切片、单一项目的垂直业务切片、跨仓/多项目的技术层或仓库边界切片。
 
+> 以下示例名（如 `export-feature`、`oauth-migration`、`request-id-logging`）均为**中性示意名**，用于说明 Slice Plan 形态，不代表特定项目类型或技术栈。技能本身与项目类型无关。
+
 ---
 
 ## 示例 1：单仓单切片（无需拆分）
 
 **需求**：为 API 日志添加请求 ID 追踪。
 
-**判定**：单一责任单元 + 文件影响 ≤5（middleware.ts / logger.ts / types.ts / test）+ 代码 ≤150 行 → **无需拆分**。
+**判定**：单一责任单元 + 文件影响 ≤5（middleware / logger / types / test）+ 代码 ≤150 行 → **无需拆分**。
 
 ```yaml
 Slice Plan (user_confirmed: true)
-mode: single-repo
+mode: single-workspace
+workspace: null
 change_name: request-id-logging
-initiative: null
 sequencing_rule: parallel  # 单切片，无序列依赖
 slices:
   - sequence: "01"
     name: trace-middleware
     goal: Add request ID to API logs for traceability
-    areas: []  # repo-local, 留空
+    areas: []  # repo-local，留空
     depends_on: []
     context: |
       为现有 API 日志系统增加请求 ID 追踪能力。独立功能，无前序依赖，无后续切片。
@@ -50,9 +52,9 @@ slices:
 
 ```yaml
 Slice Plan (user_confirmed: true)
-mode: single-repo
+mode: single-workspace
+workspace: null
 change_name: export-feature
-initiative: null
 sequencing_rule: archive-N-before-N+1
 slices:
   - sequence: "01"
@@ -128,34 +130,33 @@ slices:
 - `openspec new change "export-feature-01-foundation" --goal "CSV export golden path ..."`
 - `openspec new change "export-feature-02-progress-feedback" --goal "Add progress bar ..."`
 - `openspec new change "export-feature-03-error-resilience" --goal "Add error handling ..."`
-- 每个 change 的 proposal.md Dependencies 章节含前序切片标注（由 change-process 物化 `depends_on`）
+- 每个 change 的 proposal.md Dependencies 章节含前序切片标注（由 register 物化 `depends_on`）
 
 **提示用户**："Archive 01 before starting 02"（仅提示，不强制）
 
 ---
 
-## 示例 3：跨仓 Initiative（认证系统升级）
+## 示例 3：跨仓集中工作空间（认证系统升级）
 
 **需求**：从 JWT 迁移到 OAuth2.0，涉及 3 个仓库（auth-service / api-gateway / web-frontend）+ 2 个团队（后端 / 前端）。
 
-**判定**：跨仓 + 多团队 + 天然分离的服务职责面 → **按技术层/仓库边界切片**，采用 **cross-repo mode + Initiative 协调**。
+**判定**：跨仓 + 多团队 + 天然分离的服务职责面 → **按技术层/仓库边界切片**，声明集中工作空间，所有切片在其内以 repo-local change 登记。
 
 ```yaml
 Slice Plan (user_confirmed: true)
-mode: cross-repo
+mode: single-workspace
+workspace:
+  kind: integration-repo
+  path: /shared/integration-repos/oauth-migration   # 集成 repo 根路径；register 会 openspec init
+  init_status: required
+  note: 切片代码分别落地 auth-service / api-gateway / web-frontend（物化进 proposal 的 scope/dependencies）
 change_name: oauth-migration
-initiative:
-  id: oauth-migration
-  store: platform-initiatives
-  store_path: /shared/context-stores/platform-initiatives
-  title: Migrate from JWT to OAuth2.0
-  summary: Replace JWT with OAuth2.0 across auth-service, api-gateway, web-frontend for better security and SSO support
 sequencing_rule: archive-N-before-N+1
 slices:
   - sequence: "01"
     name: auth-service-provider
     goal: Implement OAuth2.0 provider in auth-service
-    areas: []  # repo-local in auth-service repo
+    areas: []  # repo-local in integration workspace
     depends_on: []
     context: |
       认证系统升级 Epic 的基座。在 auth-service 仓库实现 OAuth2.0 provider，为后续 api-gateway 集成与 web-frontend 登录流程提供认证端点。
@@ -184,7 +185,7 @@ slices:
   - sequence: "02"
     name: gateway-client
     goal: Integrate OAuth2.0 client in api-gateway
-    areas: []  # repo-local in api-gateway repo
+    areas: []
     depends_on: ["01"]
     context: |
       认证系统升级 Epic 的中间层。在 api-gateway 仓库集成 OAuth2.0 client，依赖 oauth-migration-01-auth-service-provider 已归档的认证端点，为 oauth-migration-03-frontend-login 提供 token 验证能力。
@@ -213,7 +214,7 @@ slices:
   - sequence: "03"
     name: frontend-login
     goal: Update web-frontend login flow to use OAuth2.0
-    areas: []  # repo-local in web-frontend repo
+    areas: []
     depends_on: ["01", "02"]
     context: |
       认证系统升级 Epic 的用户入口。在 web-frontend 仓库更新登录流程使用 OAuth2.0，依赖 oauth-migration-01-auth-service-provider 的认证端点与 oauth-migration-02-gateway-client 的 token 验证。
@@ -232,33 +233,17 @@ slices:
     handoff: null
 ```
 
-**登记后**（由 change-process 执行）：
-1. `openspec context-store setup platform-initiatives --path /shared/context-stores/platform-initiatives --init-git`
-2. `openspec initiative create oauth-migration --title "Migrate from JWT to OAuth2.0" --summary "..." --store platform-initiatives`
-3. 在 `auth-service` 仓库：`openspec new change "oauth-migration-01-auth-service-provider" --initiative platform-initiatives/oauth-migration --goal "..."`
-4. 在 `api-gateway` 仓库：`openspec new change "oauth-migration-02-gateway-client" --initiative platform-initiatives/oauth-migration --goal "..."`
-5. 在 `web-frontend` 仓库：`openspec new change "oauth-migration-03-frontend-login" --initiative platform-initiatives/oauth-migration --goal "..."`
+**登记后**（由 `openspec-slices-register` 执行）：
+1. 对集成 repo 跑 `openspec init --tools none --force /shared/integration-repos/oauth-migration`（`init_status: required` 时）
+2. 在该工作空间 `openspec/` 下登记各切片（均 repo-local，不带 `--initiative`）：
+   - `openspec new change "oauth-migration-01-auth-service-provider" --goal "..."`
+   - `openspec new change "oauth-migration-02-gateway-client" --goal "..."`
+   - `openspec new change "oauth-migration-03-frontend-login" --goal "..."`
+3. 持久化 `openspec/slice-plans/oauth-migration.yaml`
 
-**每个 change 的 `.openspec.yaml`** 含：
-```yaml
-initiative:
-  store: platform-initiatives
-  id: oauth-migration
-```
+每个 change 的 proposal.md 在 `Scope`/`Dependencies` 注明代码实际落地哪个 repo（来自 `workspace.note`）。
 
-**Initiative tasks.md**（手动维护协调项，CLI 不自动更新）：
-```markdown
-# Tasks
-
-## Coordination Tasks
-- [ ] oauth-migration-01-auth-service-provider 归档并部署到 staging
-- [ ] oauth-migration-02-gateway-client 归档并部署到 staging
-- [ ] oauth-migration-03-frontend-login 归档并部署到 staging
-- [ ] E2E 验证三仓集成
-- [ ] 生产发布窗口协调
-```
-
-**提示用户**："Archive 01 in auth-service before starting 02 in api-gateway; archive 02 before starting 03 in web-frontend"
+**提示用户**："Archive 01 before starting 02; archive 02 before starting 03"
 
 ---
 
@@ -273,8 +258,8 @@ initiative:
 ## Core Output
 - decision: do-not-split
 - rationale: 单一责任单元，影响文件与代码规模都在单切片阈值内
-- mode: single-repo
-- initiative: null
+- mode: single-workspace
+- workspace: null
 - sequencing_rule: parallel
 - slices:
   - sequence: 01
@@ -294,9 +279,9 @@ initiative:
 
 ```yaml
 Slice Plan (user_confirmed: false)
-mode: single-repo
+mode: single-workspace
+workspace: null
 change_name: request-id-logging
-initiative: null
 sequencing_rule: parallel
 slices:
   - sequence: "01"
@@ -341,9 +326,9 @@ slices:
 
 ## Core Output
 - decision: split
-- rationale: 跨三仓与两团队协作，且职责天然按服务边界分离，适合按技术层/仓库边界切片并用 initiative 协调
-- mode: cross-repo
-- initiative: platform-initiatives/oauth-migration
+- rationale: 跨三仓与两团队协作，且职责天然按服务边界分离，适合按技术层/仓库边界切片并声明集中工作空间
+- mode: single-workspace
+- workspace: {kind: integration-repo, path: /shared/integration-repos/oauth-migration, init_status: required, note: 切片代码分别落地 auth-service/api-gateway/web-frontend}
 - sequencing_rule: archive-N-before-N+1
 - slices:
   - sequence: 01
@@ -366,6 +351,8 @@ slices:
 
 ```yaml
 Slice Plan (user_confirmed: false)
+mode: single-workspace
+workspace: {kind: integration-repo, path: /shared/integration-repos/oauth-migration, init_status: required, note: ...}
 change_name: oauth-migration
 ...
 ```
@@ -373,10 +360,10 @@ change_name: oauth-migration
 ## Handoff
 - handoff_to: none
 - handoff_input: confirmed Slice Plan
-- handoff_reason: registration starts only after confirmation
+- handoff_reason: registration starts only after confirmation; register will openspec init the workspace and register all slices inside it
 
 ## Next Step
-- recommended_action: confirm initiative、序列与范围边界后再交 register
+- recommended_action: 确认 workspace、序列与范围边界后再交 register
 - requires_user_confirmation: yes
 
 ## Warnings
@@ -387,18 +374,19 @@ change_name: oauth-migration
 
 ## 快速验证场景
 
-以下场景用于快速检查本技能是否会走新规则；目标不是产出完整 Slice Plan，而是先验证“切片维度选择”是否正确。
+以下场景用于快速检查本技能是否会走新规则；目标不是产出完整 Slice Plan，而是先验证“切片维度选择”是否正确。示例名均为中性示意，不代表特定项目类型。
 
 ### 验证场景 1：单一项目应走垂直业务切片
 
 **输入**：
-- 一个 Web 单仓应用
-- 需求：为报表页增加“导出 CSV + 导出进度 + 导出失败重试”
+- 一个单仓应用
+- 需求：为某页面增加"导出 + 导出进度 + 导出失败重试"
 - 影响：frontend、API handler、query builder 都在同一仓内
 
 **期望判断**：
 - decision: split
-- mode: single-repo
+- mode: single-workspace
+- workspace: null
 - slice_strategy: vertical-business
 - rationale: 虽跨 UI / API / query，但仍属于单一项目，应该按用户可感知价值端到端切，而不是先拆 frontend/backend/db
 - example_slices:
@@ -406,7 +394,7 @@ change_name: oauth-migration
   - export-feature-02-export-progress
   - export-feature-03-export-retry
 
-### 验证场景 2：多项目应走技术层或仓库边界切片
+### 验证场景 2：多项目应走技术层或仓库边界切片（声明集中工作空间）
 
 **输入**：
 - 三个仓库：`web-frontend`、`api-gateway`、`billing-service`
@@ -415,9 +403,10 @@ change_name: oauth-migration
 
 **期望判断**：
 - decision: split
-- mode: cross-repo
+- mode: single-workspace
+- workspace: {kind: integration-repo, path: ..., init_status: required, note: 切片分别落地 billing-service/api-gateway/web-frontend}
 - slice_strategy: repo-boundary
-- rationale: 需求天然跨 repo 与团队职责面，应该按仓库/服务边界切片，再用 depends_on 与 initiative 协调，而不是把每个业务故事横跨三个仓库
+- rationale: 需求天然跨 repo 与团队职责面，应该按仓库/服务边界切片并在集中工作空间内登记，而不是把每个业务故事横跨三个仓库
 - example_slices:
   - oauth-billing-01-billing-service-oauth-provider
   - oauth-billing-02-api-gateway-oauth-client
@@ -427,4 +416,4 @@ change_name: oauth-migration
 
 - 如果单一项目场景被拆成 `frontend-ui` / `backend-api` / `db-query`，说明仍在误用技术层切片。
 - 如果多项目场景被拆成同时修改多个仓库的 `login-story` / `session-story`，说明仍在误用单仓垂直切片。
-- 只有当 `slice_strategy` 与项目形态一致时，才继续输出完整 Slice Plan。
+- 只有当 `slice_strategy` 与项目形态一致、且 cross-repo 用 `workspace:` 而非 `initiative:` 时，才继续输出完整 Slice Plan。

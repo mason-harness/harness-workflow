@@ -1,250 +1,227 @@
 # OpenSpec CLI v1.4.1 契约
 
-本文档记录 OpenSpec CLI v1.4.1 的精确契约，供 `openspec-slices-register` 技能落地登记时对齐。来源：CLI 源码 `dist/commands/` 与实际测试。
+本文档记录 OpenSpec CLI v1.4.1 的精确契约，供 `openspec-slices-register` / `openspec-slices-track` 技能对齐。来源：`openspec --help` 与各子命令 `--help`、以及实际运行测试（验证日期见文末）。
 
-## 关键命令语法
+## slice 技能实际使用的命令（首选阅读）
 
-### context-store 命令
+`openspec-slices-*` 三个技能**只使用**以下命令：
 
-**setup（创建或注册 context store）**：
+### init 命令（初始化 OpenSpec 工作空间）
+
+**语法**：
 ```bash
-openspec context-store setup [id] --path <storeRoot> --init-git --json
+openspec init [path] --tools <tools> --force --profile <profile>
 ```
-- `id`：可选，kebab-case；省略时从 `--path` 目录名推断
-- `--path`：必填，context store 根目录的绝对路径
-- `--init-git`：可选，setup 时初始化 git repo；与 `--no-init-git` 互斥
-- `--json`：输出 JSON 格式（含 `id` / `path` / `created` 字段）
+- `path`：可选，目标目录；省略时初始化当前目录
+- `--tools <tools>`：非交互配置 AI 工具，取 `all` / `none` / 逗号分隔列表（claude, codex, cursor, ...）
+- `--force`：自动清理 legacy 文件，不交互提示
+- `--profile <profile>`：覆盖全局 config profile（`core` 或自定义）
+- `--json`：init **不接受** `--json`（已验证），输出为人类可读文本
 
-**list（列出已注册 store）**：
-```bash
-openspec context-store list --json
+**实际行为**（实跑验证）：在目标目录创建 in-repo 结构：
 ```
-- 输出：`{context_stores: [{id, path, status: "valid"|"invalid"}]}`
+openspec/
+  config.yaml          # schema: spec-driven 等项目级配置
+  changes/
+    archive/
+  specs/
+```
+该结构位于目标 repo 内，**随 git 同步、可跨设备使用**——这是 `openspec-slices-register` 在 cross-repo 场景初始化集中工作空间使用的命令。
 
-**doctor（检查 store 健康）**：
-```bash
-openspec context-store doctor --json
-```
-- 输出：诊断信息，含 invalid store 列表
+**openspec-slices-register 使用**：cross-repo 且 `workspace.init_status: required` 时，对 `workspace.path` 运行 `openspec init --tools none --force <path>`（或省略 path 时先 `cd`）。`--tools none` 避免在工作空间内安装 agent skills 副本。
 
 ---
 
-### initiative 命令
-
-**create（创建 initiative）**：
-```bash
-openspec initiative create [id] --title <t> --summary <s> --store <store> --store-path <path> --json
-```
-- `id`：必填，kebab-case，与 `initiatives/<id>/` 目录同名
-- `--title`：必填，一行简短标题
-- `--summary`：必填，一行摘要
-- `--store <id>`：指定已注册 context store id
-- `--store-path <path>`：与 `--store` 二选一，直接传 store 根路径（未注册时用）
-- `--json`：输出 JSON（含 `initiative: {id, store, title, ...}` / `created_files: [...]`）
-
-**show（查看 initiative）**：
-```bash
-openspec initiative show <id> --json
-```
-- `id`：initiative id（格式 `<id>` 或 `<store>/<id>`）
-- 输出：`{initiative: {id, store, title, summary, status, created, owners, ...}}`
-
-**list（列出 initiative）**：
-```bash
-openspec initiative list --json
-```
-- 输出：`{initiatives: [{id, store, title, status}]}`
-
----
-
-### new change 命令
+### new change 命令（创建 change）
 
 **语法**：
 ```bash
 openspec new change <name> --goal <g> --areas <a1,a2> --initiative <id> --store <store> --store-path <path> --schema <schema> --json
 ```
 
-**参数**：
-- `<name>`：必填，change 名称，kebab-case，合法字符 `[a-z0-9-]`，不以 `-` 开头/结尾
-- `--goal`：可选，一行目标描述（单仓 repo-local 常用）
-- `--areas`：可选，逗号分隔的区域列表（仅 workspace 用，repo-local 留空）
-- `--initiative <id>`：可选，链接到 initiative（三形态之一，见下）
-- `--store <id>`：配合 `--initiative` 使用，指定 store
-- `--store-path <path>`：配合 `--initiative` 使用，直接传 store 路径
-- `--schema <name>`：可选，指定 schema（默认自动检测）
+**slice 技能只用以下参数**：
+- `<name>`：必填，kebab-case，合法字符 `[a-z0-9-]`，不以 `-` 开头/结尾
+- `--goal <g>`：可选，一行目标描述（repo-local 常用）
 - `--json`：输出 JSON
 
-**--initiative 三形态**（CLI 接受任一形态）：
-1. `--initiative <id>`（单独，自动从当前目录推断 store）
-2. `--initiative <store>/<id>`（斜杠格式）
-3. `--initiative <id> --store <store>`（分开传）
+> `--initiative` / `--store` / `--store-path` / `--areas` / `--schema` 属于 context-store / initiative / workspace 形态，**slice 技能不再使用**（见下文「降级段」）。slice 技能创建的 change 一律为 repo-local，不带 `--initiative`。
 
-**输出**（`--json`）：
+**输出**（`--json`，实跑验证）：
 ```json
 {
-  "change_name": "export-feature-01-foundation",
-  "schema_name": "repo-local-change",
-  "created_files": [
-    "openspec/changes/export-feature-01-foundation/.openspec.yaml",
-    "openspec/changes/export-feature-01-foundation/proposal.md"
-  ],
-  "status": []
+  "change": {
+    "id": "export-feature-01-foundation",
+    "path": "/abs/openspec/changes/export-feature-01-foundation",
+    "metadataPath": "/abs/openspec/changes/export-feature-01-foundation/.openspec.yaml",
+    "schema": "spec-driven"
+  }
 }
 ```
 
-> 说明：上例 `change_name` 为 `openspec-slices-plan` 定义的切片命名 `{change-name}-{change-num}-{slice-change-name}` 的一个具体实例。CLI 本身只强制 kebab-case（见 §4），不约束三段结构；三段命名是 skill 层约定，由 plan 生成、register 登记时照搬。
-
-**幂等性**：change 已存在时返回错误（非 JSON 时输出 "Change '<name>' already exists"）；`openspec-slices-register` 捕获此错误视为成功（幂等）。
+**关键点**（实跑验证）：
+- 创建时**只生成 `.openspec.yaml`**，**不生成 `proposal.md`**——`proposal.md` 需在登记阶段由 subagent 当轮写完（这是 `openspec-slices-register` 的硬约束）。
+- 上例 `id` 是 `openspec-slices-plan` 三段命名 `{change-name}-{change-num}-{slice-change-name}` 的实例；CLI 本身只强制 kebab-case（见 §kebab-case），三段结构是 skill 层约定。
+- change 已存在时报错（非 JSON 时输出 "Change '<name>' already exists"）；register 捕获视为成功（幂等）。
 
 ---
 
-### set change 命令
+### list 命令（查询 active changes）
 
 **语法**：
 ```bash
-openspec set change <name> --initiative <id> --store <store> --store-path <path> --json
+openspec list --json [--specs]
 ```
+- 默认列 changes；`--specs` 列 specs
 
-**用途**：为已存在 change 补充/修改 initiative 链接（写入 `.openspec.yaml` 的 `initiative: {store, id}`）。
-
-**限制**：
-- **仅 repo-local change 可 link initiative**（workspace change 不可，CLI 会报错 "workspace changes cannot be linked to initiatives"）
-- 若 change 不存在，报错
-
----
-
-## 关键限制与契约
-
-### 1. workspace change 不可 link initiative
-
-**限制来源**：CLI 源码 `set change` 命令校验逻辑。
-
-**表现**：
-- `openspec new change "<name>" --initiative <id>`（workspace）→ 创建成功，但 `.openspec.yaml` 不含 `initiative` 字段
-- `openspec set change "<name>" --initiative <id>`（workspace）→ **报错退出**："workspace changes cannot be linked to initiatives"
-
-**原因**：workspace change 不属于特定 repo，无法与 repo-local context store 的 initiative 形成明确归属关系。
-
-**openspec-slices-register 处理**：
-- 遇 Slice Plan `mode=cross-repo` + 当前为 workspace → **STOP** 退回 change-slice
-- 提示："workspace change 不可 link initiative（CLI 限制），改 repo-local 或退回用户决策"
-
----
-
-### 2. progress 是只读计算，CLI 不写 checkbox
-
-**来源**：CLI 源码 `dist/commands/workflow/instructions.js:220-262`。
-
-**机制**：
-```javascript
-// 读取 change 的 tasks.md
-const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
-const tasks = parseTasksFile(tasksContent);  // 解析 - [ ] / - [x]
-const total = tasks.length;
-const complete = tasks.filter((t) => t.done).length;
-const remaining = total - complete;
-```
-
-**输出**（`openspec instructions` / `openspec status`）：
+**输出**（`--json`，实跑验证）：
 ```json
 {
-  "progress": {
-    "total": 5,
-    "complete": 2,
-    "remaining": 3
+  "changes": [
+    {
+      "name": "export-feature-01-foundation",
+      "completedTasks": 0,
+      "totalTasks": 0,
+      "lastModified": "2026-07-28T01:42:41.476Z",
+      "status": "no-tasks"
+    }
+  ]
+}
+```
+`status` 可为 `no-tasks`（尚未生成 tasks.md）。`openspec-slices-track` 用此获取 active change 列表与 task 计数，再对缺失切片逐个补查 archived 状态。
+
+---
+
+### status 命令（查询单 change 状态）★ 实跑验证
+
+**语法**：
+```bash
+openspec status --change <name> --schema <name> --json
+```
+- `--change <id>`：change 名称
+- `--schema <name>`：schema 覆盖（默认从 config.yaml 自动检测）
+- `--json`：输出 JSON
+
+**输出**（`--json`，实跑验证，**比 track 旧假设更丰富**）：
+```json
+{
+  "changeName": "export-feature-01-foundation",
+  "schemaName": "spec-driven",
+  "planningHome": {
+    "kind": "repo",
+    "root": "/abs/repo-root",
+    "changesDir": "/abs/repo-root/openspec/changes",
+    "defaultSchema": "spec-driven"
+  },
+  "changeRoot": "/abs/openspec/changes/export-feature-01-foundation",
+  "artifactPaths": {
+    "proposal": {
+      "outputPath": "proposal.md",
+      "resolvedOutputPath": "/abs/openspec/changes/export-feature-01-foundation/proposal.md",
+      "existingOutputPaths": []
+    },
+    "specs": { "outputPath": "specs/**/*.md", "resolvedOutputPath": "...", "existingOutputPaths": [] }
   }
 }
 ```
 
 **关键点**：
-- CLI **从不主动写入** `- [x]` 到 tasks.md
-- checkbox 由 `openspec-apply-change` 技能手动勾选（`apply-change.js`："Mark task complete in the tasks file: `- [ ]` → `- [x]`"）
-- `openspec instructions` / `status` 只**读取并计算** progress，不修改文件
+- `openspec-slices-track` 用 `--change <name>` 补查未出现在 `openspec list` 的切片的归档状态；`planningHome.root` 给出工作空间根路径，可用于解析计划源相对位置。
+- 进度字段（`progress`/`completedTasks` 等）以 `openspec list --json` 为聚合入口；`status` 侧重 artifact 路径与 change 定位。
 
-**openspec-slices-register 职责**：
-- **不追踪进度**，不调用 `openspec status` / `instructions` 汇报进度
-- 进度由 apply 技能写 checkbox + CLI 只读聚合
+### show 命令（★ 不可靠，slice 技能禁用）
 
----
+```bash
+openspec show [item-name] --json --type <change|spec> ...
+```
+**实跑验证**：`openspec show <change-name>` 返回 `Unknown item '<name>'`——`show` **不是**可靠的 per-change 状态查询入口。
 
-### 3. initiative tasks.md 创建后不再更新
-
-**来源**：CLI 源码全包搜索 "写入 initiative tasks.md" 逻辑。
-
-**结论**：
-- `openspec initiative create` 创建时写一次模板：
-  ```markdown
-  # Tasks
-  
-  ## Coordination Tasks
-  - [ ] TBD
-  ```
-- **无任何代码**在 apply/archive 完成后回写 initiative 的 tasks.md
-- CLI 对 initiative 做的只有：
-  - `initiative create` —— 创建时写一次模板
-  - `initiative show/list` —— **只读**展示 initiative 元数据 + 已链接 change
-  - `openspec status` —— 显示 `Initiative: <store>/<id>` 链接关系（只读）
-  - `openspec instructions` —— 返回 `initiative` 字段（只读，供 apply 感知"本 change 属于哪个倡议"）
-
-**CLI 契约结论**：
-- CLI **不会自动维护** initiative `tasks.md` 协调项内容
-- 进度仍由各 change 自己的 `tasks.md` 维护，CLI 只读聚合
-
-**openspec-slices-register 补齐策略**：
-- `cross-repo` 登记完成后，skill 需要**手动且幂等地**维护 initiative `tasks.md` 的 slice index
-- 该 index 只写切片顺序、依赖、repo/change 映射与 handoff 摘要，不写 task 级进度
-- 若现有 `tasks.md` 无法安全更新或与 Slice Plan 冲突，应 STOP 并要求人工确认
+**openspec-slices-track 禁用 `show`** 查询状态；改用 `openspec status --change <name> --json` 与 `openspec list --json`。
 
 ---
 
-### 4. kebab-case 校验规则
+### validate 命令（校验 changes/specs）
+
+**语法**：
+```bash
+openspec validate [item-name] --all --changes --specs --type <change|spec> --strict --json --concurrency <n> --no-interactive
+```
+- 不带 item-name 时配合 `--all` / `--changes` / `--specs`
+- `--type`：歧义时指定 `change|spec`
+- `--strict`：严格模式
+- `--json`：输出 JSON 校验结果
+
+**注意**：正确命令是 `openspec validate`，**不是** `openspec schema validate`。slice 技能当前不强制调用 `validate`；若 `openspec-slices-track` 需要健康检查可使用。
+
+---
+
+## kebab-case 校验规则
 
 **合法字符**：`[a-z0-9-]`（小写字母、数字、连字符）
 
-**禁止**：
-- 大写字母（`My-Change` → 不合法）
-- 下划线（`my_change` → 不合法）
-- 以 `-` 开头或结尾（`-my-change` / `my-change-` → 不合法）
-- 连续多个 `-`（`my--change` → 技术上合法，但不推荐）
+**禁止**：大写字母、下划线、以 `-` 开头/结尾、连续多个 `-`（技术上合法但不推荐）。
 
 **CLI 行为**：
-- `openspec new change "My-Change"` → **报错退出**："Invalid change name"
-- `openspec new change "my_change"` → **报错退出**
+- `openspec new change "My-Change"` → 报错 "Invalid change name"
+- `openspec new change "my_change"` → 报错
 - `openspec new change "my-change"` → 成功
 
-**openspec-slices-register 校验**：
-- Slice Plan 的 `slices[].name`（切片描述名，第三段）必须符合 kebab-case
-- `change_name`（父批次名，第一段）与 `sequence`（`01`/`02`...，第二段）拼接出的完整 change 名 `{change_name}-{sequence}-{name}` 也必须整体通过 kebab-case 校验
+**slice 技能校验**：
+- Slice Plan 的 `slices[].name`（第三段）必须 kebab-case
+- `change_name`（第一段）+ `sequence`（`01`/`02`...，第二段）拼接的 `{change_name}-{sequence}-{name}` 整体须通过 kebab-case
 - 不符合 → STOP 退回 change-slice
 
 ---
 
-### 5. --initiative 三形态解析优先级
+## 降级段：context-store / initiative / workspace setup（slice 技能不使用，仅备 CLI 全貌）
 
-CLI 接受三种形态，优先级：
-1. `--initiative <store>/<id>`（斜杠格式）→ 直接解析 store 与 id
-2. `--initiative <id> --store <store>`（分开传）→ 合成
-3. `--initiative <id>`（单独）→ 从当前目录的 context-store 推断 store
+> ⚠️ **scope 横幅**：以下命令 `openspec-slices-plan/register/track` 三个技能**不再使用**。它们记录的是 OpenSpec CLI 提供的 context-store / initiative / machine-local workspace 能力的全貌，供其他 skill 或人工参考，不构成 slice 技能的登记/追踪路径。slice 技能统一走「单工作空间 repo-local」流（见各 SKILL.md）。
 
-**推荐**（openspec-slices-register 使用）：
-- **跨仓明确传 store**：`--initiative <id> --store <store>`（最清晰，无歧义）
-- 避免单独 `--initiative <id>`（依赖隐式推断，易出错）
+### context-store 命令（slice 技能不使用）
 
----
+```bash
+openspec context-store setup [id] --path <storeRoot> --init-git --json
+openspec context-store list --json
+openspec context-store doctor --json
+```
+`--path` 必填绝对路径；`--init-git` 与 `--no-init-git` 互斥；`--json` 输出 `{id,path,created}`。
 
-### 6. --store-path 与 --store 的区别
+### initiative 命令（slice 技能不使用）
 
-**--store <id>**：
-- 要求 store 已通过 `context-store setup` 注册
-- CLI 从已注册列表查找 id → path
+```bash
+openspec initiative create [id] --title <t> --summary <s> --store <store> --store-path <path> --json
+openspec initiative show <id> --json
+openspec initiative list --json
+```
+- `id` 必填 kebab-case，对应 `initiatives/<id>/` 目录
+- `--store <id>` 与 `--store-path <path>` 二选一（后者绕过注册检查）
 
-**--store-path <path>**：
-- 直接传绝对路径，绕过注册检查
-- 适用于 store 未注册、或临时使用场景
+### set change 命令（slice 技能不使用）
 
-**推荐**（openspec-slices-register 流程）：
-1. 先 `openspec context-store setup <id> --path <storeRoot> --init-git` 注册
-2. 后续用 `--store <id>`（而非 `--store-path`），确保 store 已被 CLI 追踪
+```bash
+openspec set change <name> --initiative <id> --store <store> --store-path <path> --json
+```
+为已存在 change 补/改 initiative 链接。**限制**：仅 repo-local change 可 link initiative；workspace change 不可（CLI 报错 "workspace changes cannot be linked to initiatives"）。
+
+### workspace setup 命令（★ slice 技能明确弃用）
+
+```bash
+openspec workspace setup --name <name> --link <path> [--link <path>...] --opener <id> --tools <tools> --json --no-interactive
+```
+**实跑验证**：`--no-interactive` 时要求 `--name` 且至少一个 `--link`（否则报 `missing_setup_inputs`）。**创建的工作空间存于机器本地 `~/.local/share/openspec/workspaces/<name>/`**（`root`/`planning_path` 都在该机器本地目录下），**不在任何 git repo 内，不可 git 同步、不可跨设备使用**。
+
+**slice 技能明确弃用 `openspec workspace setup`**：它违反「数据存储首选工作空间、可跨设备使用」要求。cross-repo 集中工作空间用 `openspec init` 在集成 repo 内创建（见上文「init 命令」）。
+
+### --initiative 三形态（slice 技能不使用）
+
+CLI 接受三种形态（优先级）：`--initiative <store>/<id>` → `--initiative <id> --store <store>` → `--initiative <id>`（单独，从当前目录推断 store）。slice 技能创建 change 时一律**不带** `--initiative`。
+
+### progress 是只读计算，CLI 不写 checkbox
+
+CLI 读取 `tasks.md` 的 `- [ ]`/`- [x]` 计算 `progress.{total,complete,remaining}`，**从不主动写入 checkbox**；checkbox 由 apply 技能手写。`openspec-slices-register` 不追踪进度，不调用 `status`/`instructions` 汇报进度。
+
+### initiative tasks.md 创建后不再自动更新
+
+`openspec initiative create` 创建时写一次模板，**无代码**在 apply/archive 后回写 initiative `tasks.md`。slice 技能不再依赖 initiative `tasks.md` 作计划源/协调索引；批次级计划真相统一由 `openspec/slice-plans/<change_name>.yaml` 承载（由 register 手动持久化，CLI 不创建/读取/更新该路径）。
 
 ---
 
@@ -252,10 +229,11 @@ CLI 接受三种形态，优先级：
 
 | 陷阱 | 表现 | 正确做法 |
 |------|------|----------|
-| workspace change link initiative | 创建成功但 `.openspec.yaml` 无 `initiative`；`set change --initiative` 报错 | STOP；提示 workspace 不可 link |
-| 直接用 `--initiative <id>` | 依赖当前目录推断 store，跨仓时易错 | 明确传 `--store <store>` |
-| 假设 CLI 会自动更新 initiative tasks.md | 切片归档后 initiative tasks.md 不变 | 手动维护 initiative tasks.md |
-| 假设 CLI 会自动勾选 checkbox | tasks.md 一直 `- [ ]` | apply 技能手动勾选 |
+| 误用 `openspec workspace setup` 建集中工作空间 | 工作空间落在 `~/.local/share/openspec/`，不可 git 同步 | 改用 `openspec init <path>` 在集成 repo 内初始化 |
+| 给 slice change 带 `--initiative` | 走 context-store/initiative 路径，偏离单工作空间流 | slice 技能创建 change 一律不带 `--initiative` |
+| 用 `openspec show <change>` 查状态 | 返回 "Unknown item" | 改用 `openspec status --change <name> --json` |
+| 把 `openspec schema validate` 当命令 | 不存在 | 正确命令是 `openspec validate` |
+| 创建 change 后等 CLI 生成 proposal.md | 只有 `.openspec.yaml` | proposal.md 由 register subagent 当轮写完 |
 | 大写/下划线命名 change | CLI 报错 "Invalid change name" | 强制 kebab-case |
 
 ---
@@ -263,6 +241,6 @@ CLI 接受三种形态，优先级：
 ## 契约版本
 
 - **CLI 版本**：v1.4.1
-- **来源**：`@fission-ai/openspec` npm package，`dist/commands/` 源码
-- **验证日期**：2026-06-26
+- **来源**：`@fission-ai/openspec`（pnpm 安装），`openspec --help` / 各子命令 `--help`、实跑测试
+- **验证日期**：2026-07-28
 - **后续版本变更**：若 CLI 升级，需重新核对本契约文档

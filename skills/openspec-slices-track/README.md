@@ -11,8 +11,8 @@
 
 ## 核心输入
 
-- auto-memory 中保存的 Slice Plan 依赖关系
-- `openspec list --json` 返回的当前 active changes 状态，以及对缺失切片逐个补查得到的 archived 状态
+- 工作空间内 `<workspace>/openspec/slice-plans/<change_name>.yaml`（首选计划源，含依赖与 sequencing_rule）；无 openspec 目录时回退 auto-memory 或用户提供的 Slice Plan
+- `openspec list --json` 返回的当前 active changes 状态，以及对缺失切片逐个补查得到的 archived 状态（`openspec status --change <name> --json`）
 
 ## 核心输出
 
@@ -23,5 +23,5 @@
 ## 配套技能
 
 - `openspec-slices-plan`：拆分切片
-- `openspec-slices-register`：登记切片
+- `openspec-slices-register`：登记切片并持久化 slice-plan.yaml
 - `openspec-slices-track`：追踪切片推进

@@ -1,5 +1,7 @@
 # 进度追踪规则
 
+> 下文示例名（如 `sample-feature`）为中性示意名，不代表特定项目类型。
+
 ## 状态映射
 
 基于 OpenSpec CLI 的 active change 列表与逐个补查得到的 archived 状态合并结果，将每个切片映射为以下四类状态：
@@ -15,11 +17,11 @@
 
 满足全部条件：
 - 该 change 不在 `openspec list --json` 的 active 列表中
-- 且对该 change 运行 `openspec status --change <name> --json` 或等效 CLI 查询后可确认其状态为 `archived`
+- 且对该 change 运行 `openspec status --change <name> --json` 后可确认其状态为 `archived`
 
 显示格式：
 ```text
-✅ novel-generator-01-project-bootstrap      [archived]
+✅ sample-feature-01-project-bootstrap      [archived]
 ```
 
 ### 2. in-progress
@@ -31,7 +33,7 @@
 
 显示格式：
 ```text
-🔄 novel-generator-02-chapter-content-core   [5/12 tasks, 41%]
+🔄 sample-feature-02-content-core   [5/12 tasks, 41%]
 ```
 
 百分比计算：
@@ -47,7 +49,7 @@
 
 显示格式：
 ```text
-⏳ novel-generator-03-rule-checking-engine   [ready, 依赖已满足]
+⏳ sample-feature-03-checking-engine   [ready, 依赖已满足]
 ```
 
 ### 4. blocked
@@ -59,7 +61,7 @@
 
 显示格式：
 ```text
-🚫 novel-generator-04-state-machine          [blocked, 等待 02/03]
+🚫 sample-feature-04-state-machine          [blocked, 等待 02/03]
 ```
 
 ## 依赖满足判定
@@ -92,15 +94,15 @@
 
 ```text
 ┌─────────────────────────────────────────────────┐
-│     Novel Generator 切片进度（7 个切片）          │
+│     Sample Feature 切片进度（7 个切片）          │
 ├─────────────────────────────────────────────────┤
-│ ✅ novel-gen-01-project-bootstrap [archived]   │
-│ 🔄 novel-gen-02-chapter-content    [5/12 tasks]│
-│ ⏳ novel-gen-03-rule-checking-engine [ready]    │
-│ 🚫 novel-gen-04-state-machine   [blocked by 02] │
-│ 🚫 novel-gen-05-volume-management[blocked by 02]│
-│ 🚫 novel-gen-06-destiny-weaving  [blocked by 05]│
-│ 🚫 novel-gen-07-archive-and-export[blocked by 04]│
+│ ✅ sample-feat-01-project-bootstrap [archived]   │
+│ 🔄 sample-feat-02-content-core    [5/12 tasks]│
+│ ⏳ sample-feat-03-checking-engine [ready]    │
+│ 🚫 sample-feat-04-state-machine   [blocked by 02] │
+│ 🚫 sample-feat-05-volume-management[blocked by 02]│
+│ 🚫 sample-feat-06-destiny-weaving  [blocked by 05]│
+│ 🚫 sample-feat-07-archive-and-export[blocked by 04]│
 ├─────────────────────────────────────────────────┤
 │ 📊 整体进度: 1/7 归档, 1/7 进行中               │
 └─────────────────────────────────────────────────┘
@@ -110,8 +112,7 @@
 
 如计划源与合并后的 CLI 状态结果不一致，需要提示：
 
-- initiative 中有切片，但 CLI 中缺失
-- memory 中有切片，但 CLI 中缺失
+- 计划源中有切片，但 CLI 中缺失
 - CLI 中有同族切片，但计划源中缺失
 - `depends_on` 指向不存在的切片
 
@@ -119,8 +120,8 @@
 
 ```text
 ⚠️ 计划源与当前 changes 不完全一致：
-- initiative 中声明了 novel-generator-06-destiny-weaving，但 CLI 未找到
-- CLI 中存在 novel-generator-08-extra-change，但不在当前计划源中
+- 计划源中声明了 sample-feature-06-destiny-weaving，但 CLI 未找到
+- CLI 中存在 sample-feature-08-extra-change，但不在当前计划源中
 ```
 
 ## 固定回答模版示例
@@ -132,32 +133,32 @@
 - boundary_check: tracking only; no registration, re-splitting, or implementation
 
 ## Core Output
-- plan_source: initiative/novel-generator/tasks.md
+- plan_source: openspec/slice-plans/sample-feature.yaml
 - live_status_source: cli
 - progress_board: |
     ┌─────────────────────────────────────────────────┐
-    │     Novel Generator 切片进度（7 个切片）          │
+    │     Sample Feature 切片进度（7 个切片）          │
     ├─────────────────────────────────────────────────┤
-    │ ✅ novel-gen-01-project-bootstrap [archived]   │
-    │ 🔄 novel-gen-02-chapter-content    [5/12 tasks]│
-    │ ⏳ novel-gen-03-rule-checking-engine [ready]    │
-    │ 🚫 novel-gen-04-state-machine   [blocked by 02] │
+    │ ✅ sample-feat-01-project-bootstrap [archived]   │
+    │ 🔄 sample-feat-02-content-core    [5/12 tasks]│
+    │ ⏳ sample-feat-03-checking-engine [ready]    │
+    │ 🚫 sample-feat-04-state-machine   [blocked by 02] │
     └─────────────────────────────────────────────────┘
 - summary:
   - archived: 1/7
   - in_progress: 1/7
   - ready: 1/7
   - blocked: 4/7
-- recommendation: continue novel-generator-02-chapter-content-core
+- recommendation: continue sample-feature-02-content-core
 - blocked_items:
-  - name: novel-generator-04-state-machine
+  - name: sample-feature-04-state-machine
     waiting_on: [02, 03]
 - consistency_check:
   - None
 
 ## Handoff
 - handoff_to: openspec-continue
-- handoff_input: novel-generator-02-chapter-content-core
+- handoff_input: sample-feature-02-content-core
 - handoff_reason: 当前已有进行中的切片，优先减少上下文切换
 
 ## Next Step

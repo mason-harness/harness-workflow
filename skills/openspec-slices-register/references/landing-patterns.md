@@ -1,18 +1,20 @@
 # Change 登记落地模式
 
-本文档提供 single-repo / cross-repo 的登记流程示例、subagent 调用模式、完整 `proposal.md` 写法、幂等与冲突处理原则。
+本文档提供 single-repo / cross-repo（集中工作空间）的登记流程示例、subagent 调用模式、完整 `proposal.md` 写法、幂等与冲突处理原则。
+
+> 下文示例名（如 `export-feature`、`oauth-migration`）均为中性示意名，用于说明落地形态，不代表特定项目类型或技术栈。
 
 ---
 
 ## Single-Repo 登记流程
 
-**场景**：单仓库多切片，无需跨仓协调，不使用 initiative。
+**场景**：单仓库多切片，无需跨仓协调，不建集中工作空间，直接用当前 repo 的 `openspec/`。
 
 **输入**（Slice Plan 片段）：
 ```yaml
-mode: single-repo
+mode: single-workspace
+workspace: null
 change_name: export-feature
-initiative: null
 sequencing_rule: archive-N-before-N+1
 slices:
   - sequence: "01"
@@ -37,16 +39,16 @@ slices:
 
 **执行步骤**：
 
-1. **校验 Slice Plan**：检查 `user_confirmed: true`、必填字段完整。
+1. **校验 Slice Plan**：检查 `user_confirmed: true`、必填字段完整；`workspace: null` → 用当前 repo 的 `openspec/`。
 2. **为每个切片整理 proposal 蓝图**：从 `goal / context / dependencies / scope / handoff` 生成完整 proposal 提纲，不只准备 stub。
-3. **逐切片启动 subagent**：
-   - 优先让 subagent 调用 `openspec-new-change`
+3. **逐切片启动 subagent**（在当前 repo 内）：
+   - 优先让 subagent 调用 `openspec-new-change`（创建 repo-local change，**不带 `--initiative`**）
    - 若该技能不可用，则让 subagent 调用命令 `/opsx:new`
    - 创建或复用 change 后，subagent **立即**写完整 `proposal.md`
 4. **校验 proposal 完整性**：确认 `proposal.md` 至少包含 `Goal / Context / Dependencies / Scope / Requirements / Assumptions / Non-Goals`，并在 Slice Plan.handoff 为对象时额外包含与之语义一致的 `Handoff`；不得有 `TODO` / `TBD`。
 5. **输出结果**：
    ```
-   已登记切片（single-repo）：
+   已登记切片（single-repo，workspace: null）：
    - export-feature-01-foundation: CSV export golden path
    - export-feature-02-progress-feedback: Add progress bar and cancel (depends on 01)
 
@@ -57,7 +59,7 @@ slices:
 ### 推荐 subagent 提示词（single-repo）
 
 ```text
-为 slice export-feature-02-progress-feedback 执行 OpenSpec change 创建。
+为 slice export-feature-02-progress-feedback 执行 OpenSpec change 创建（在当前 repo 内，repo-local，不带 --initiative）。
 优先调用技能 openspec-new-change；若不可用则调用命令 /opsx:new。
 change 名称必须是 export-feature-02-progress-feedback（{change-name}-{change-num}-{slice-change-name} = export-feature + 02 + progress-feedback），goal 是 "Add progress bar and cancel"。
 创建或确认 change 后，立即完成 openspec/changes/export-feature-02-progress-feedback/proposal.md，至少写完：Goal、Context、Dependencies、Scope、Requirements、Assumptions、Non-Goals。
@@ -72,27 +74,26 @@ Context / Dependencies / Scope / Handoff 必须严格来自以下 Slice Plan：
   - artifacts/contracts: 导出状态结构新增 `progressPercent`、`processedRows`、`cancelledAt`；取消操作后状态值必须保持 `cancelled`
   - ready_signal: export-feature-02-progress-feedback 已归档，且导出状态字段已在主路径可读取
   - consumer_expectations: export-feature-03-error-resilience 可基于 `cancelled | failed | complete` 判断是否允许重试；不得改写 02 已确定的状态字段语义
-若 Slice Plan.handoff 为对象，必须在 `proposal.md` 写非空 `## Handoff`，并直接物化其四个字段；若为 `null`，不得为了“完整”臆造 `## Handoff`。
+若 Slice Plan.handoff 为对象，必须在 `proposal.md` 写非空 `## Handoff`，并直接物化其四个字段；若为 `null`，不得为了"完整"臆造 `## Handoff`。
 禁止保留 TODO、TBD、空章节、或只写 stub 后交给 propose。
 完成后返回：change 是否创建成功、调用方式、proposal 是否完整、`Handoff` 是否与 Slice Plan.handoff 一致、是否发现冲突。
 ```
 
 ---
 
-## Cross-Repo 登记流程
+## Cross-Repo 集中工作空间登记流程
 
-**场景**：跨多仓库/多团队，需中心化 initiative 协调。
+**场景**：跨多仓库/多团队，先建集中工作空间（集成 repo），所有切片在其内以 repo-local change 登记；数据随 git 同步、可跨设备使用。**不使用** context-store / initiative / `--initiative`。
 
 **输入**（Slice Plan 片段）：
 ```yaml
-mode: cross-repo
+mode: single-workspace
+workspace:
+  kind: integration-repo
+  path: /shared/integration-repos/oauth-migration
+  init_status: required
+  note: 切片代码分别落地 auth-service / api-gateway / web-frontend
 change_name: oauth-migration
-initiative:
-  id: oauth-migration
-  store: platform-initiatives
-  store_path: /shared/context-stores/platform-initiatives
-  title: Migrate from JWT to OAuth2.0
-  summary: Replace JWT with OAuth2.0 for better security
 sequencing_rule: archive-N-before-N+1
 slices:
   - sequence: "01"
@@ -127,38 +128,57 @@ slices:
 
 **执行步骤**：
 
-1. **校验 Slice Plan**：检查 `initiative` 非 null、`store / id / title / summary` 完整。
-2. **建立 context-store**（若未注册）：
+1. **校验 Slice Plan**：`workspace` 为对象、`path` / `kind` / `init_status` / `note` 完整。
+2. **创建集中工作空间**（仅 `init_status: required`）：
    ```bash
-   openspec context-store list --json
-   openspec context-store setup platform-initiatives \
-     --path /shared/context-stores/platform-initiatives \
-     --init-git --json
+   openspec init --tools none --force /shared/integration-repos/oauth-migration
    ```
-3. **创建 initiative**（若未存在）：
-   ```bash
-   openspec initiative show oauth-migration --json
-   openspec initiative create oauth-migration \
-     --title "Migrate from JWT to OAuth2.0" \
-     --summary "Replace JWT with OAuth2.0 for better security" \
-     --store platform-initiatives --json
+   实跑验证：在该路径创建 `openspec/{config.yaml,changes/,changes/archive/,specs/}`，in-repo、可 git 同步。`--tools none` 避免在工作空间内安装 agent skills 副本。
+   `already-initialized` 时跳过，仅校验 `openspec/config.yaml` 存在。
+3. **逐切片启动 subagent**：在集中工作空间内创建/复用 repo-local change（**不带 `--initiative`**），并当场完成 `proposal.md`；proposal 的 `Scope`/`Dependencies` 注明代码实际落地哪个 repo（来自 `workspace.note`）。
+4. **校验**：每个 change 的 `.openspec.yaml` 存在且 `initiative` 字段**应缺省**（因未带 `--initiative`）；proposal 完整、`Handoff` 与 Slice Plan.handoff 一致、scope/dependencies 含落地 repo 标注。
+5. **输出结果**：
    ```
-4. **逐切片启动 subagent**：在各自仓库内创建/复用 change，并当场完成 `proposal.md`。
-5. **校验链接**：每个 change 的 `.openspec.yaml` 必须含：
-   ```yaml
-   initiative:
-     store: platform-initiatives
-     id: oauth-migration
-   ```
-6. **输出结果**：
-   ```
-   已登记切片（cross-repo, initiative: platform-initiatives/oauth-migration）：
+   已登记切片（cross-repo，workspace: /shared/integration-repos/oauth-migration）：
    - oauth-migration-01-auth-service-provider (auth-service): Implement OAuth2.0 provider
    - oauth-migration-02-gateway-client (api-gateway): Integrate OAuth2.0 client (depends on 01)
 
    proposal.md 已在登记阶段完成
    下一步：按 ready 状态继续后续 artifact
    ```
+
+> **禁止**：用 `openspec workspace setup` 建集中工作空间——它把数据写到机器本地 `~/.local/share/openspec/`（不可 git 同步、不可跨设备，CLI 契约已验证）。集中工作空间必须用 `openspec init` 在集成 repo 内创建。
+
+---
+
+## Slice Plan YAML 持久化
+
+**目的**：把 `openspec-slices-plan` 产出的**确认 Slice Plan YAML 原文**作为批次级计划真相落盘，供 `openspec-slices-track` 读取。`openspec-slices-plan` 的 boundary 是"零写文件"，落盘由本技能在登记时承担。
+
+**唯一路径（两模式统一）**：
+
+```
+<workspace>/openspec/slice-plans/<change_name>.yaml
+```
+
+- `<workspace>`：single-repo 时为当前 repo；cross-repo 时为集中工作空间 repo（`workspace.path`）。
+- 不进 context store；CLI 不创建/读取/更新此路径——它是 register 侧手动文件。
+
+**写入动作**（register workflow step 5）：
+
+1. 确认 step 1 已校验 `user_confirmed: true`（未确认不得落盘）。
+2. 取确认的 Slice Plan YAML 原文（plan 技能产出的 `Slice Plan (user_confirmed: true)` 块，schema 见 `openspec-slices-plan` SKILL.md「Slice Plan Schema」）。
+3. 写入 `<workspace>/openspec/slice-plans/<change_name>.yaml`；`<change_name>` 取 Slice Plan 的 `change_name` 字段（父批次名，kebab-case）。
+4. 幂等与冲突判定见下文「幂等与冲突处理 → slice-plan.yaml 冲突」。
+
+**carrier 职责区分（非副本，防误合并）**：
+
+| 文件 | 内容 | 消费者 |
+|------|------|--------|
+| `<workspace>/openspec/slice-plans/<change_name>.yaml` | 批次级全量计划（change_name / mode / workspace / sequencing_rule / 全量 scope / goal / context / handoff / depends_on） | `openspec-slices-track`（计划源） |
+| `<workspace>/openspec/changes/<change>/proposal.md` | 单切片 Goal/Context/Scope/Handoff（CLI 管理产物） | apply / verify |
+
+两者粒度与消费者不同，不是同一信息的副本——不要为"合并"而删任一。`slice-plan.yaml` 与 `proposal.md` 的 scope/handoff 字段看似重叠，但前者是批次视角、后者是单 change CLI 视角，归档/迁移时各自独立演进。
 
 ---
 
@@ -187,13 +207,13 @@ slices:
 ### 写作规则
 
 - `Goal`：使用 Slice Plan 的目标，一行即可，但不得缺失。
-- `Context`：说明该切片在整体业务线中的位置与前后依赖。
+- `Context`：说明该切片在整体业务线中的位置与前后依赖；cross-repo 时注明代码落地哪个 repo。
 - `Dependencies`：同时写明 `Depends on / Blocks / External`。
 - `Scope`：明确 `In` 与 `Out`，`Out` 里优先标注交接切片。
 - `Requirements`：给出 2–5 条可执行约束或验收方向，避免空泛口号。
 - `Assumptions`：写当前登记阶段默认成立的前提，例如上游切片已归档、同步路径足够、无需引入新协议等。
 - `Non-Goals`：明确本切片不解决什么，避免后续扩张边界。
-- `Handoff`：仅在存在真实跨切片契约时出现，写清 `handoff_to`、`artifacts/contracts`、`ready_signal`、`consumer_expectations`；不要为了“看起来完整”机械增加。
+- `Handoff`：仅在存在真实跨切片契约时出现，写清 `handoff_to`、`artifacts/contracts`、`ready_signal`、`consumer_expectations`；不要为了"看起来完整"机械增加。
 - 不得保留 `TODO`、`TBD`、模板占位或空章节。
 
 ### 何时必须写 Handoff
@@ -204,7 +224,7 @@ slices:
 
 本节讨论的都是前者。
 
-在 register 阶段，不再让 subagent 自行判断是否“看起来需要”交接：
+在 register 阶段，不再让 subagent 自行判断是否"看起来需要"交接：
 - `Slice Plan.handoff` 为对象 → 必须写 `proposal.md` 的 `## Handoff`
 - `Slice Plan.handoff` 为 `null` → 不得写 `proposal.md` 的 `## Handoff`
 - 若现场已有 proposal 与 `Slice Plan.handoff` 不一致 → 视为冲突，STOP
@@ -214,12 +234,12 @@ slices:
 - 下游切片要依赖当前切片暴露的新接口、事件、状态字段、错误码或数据结构
 - 下游切片必须遵守当前切片定义的迁移顺序、feature flag 切换点或 rollout 前提
 - 当前切片完成后，还需要人工执行的同步步骤，且这些步骤属于下游切片可开工前置条件
-- cross-repo 场景下，需要明确“哪个仓库/团队拿什么工件继续做”
+- cross-repo 场景下，需要明确"哪个仓库/团队拿什么工件继续做"
 
 以下情况**不需要**独立交接文档，也不强制写 `Handoff`：
 
-- 只有“先归档 01 再开始 02”这类顺序依赖
-- `scope.out` 只是说明“这个内容留给下一片”，但没有可消费契约
+- 只有"先归档 01 再开始 02"这类顺序依赖
+- `scope.out` 只是说明"这个内容留给下一片"，但没有可消费契约
 - 当前切片对下游没有新增显式接口或操作要求
 
 ### 推荐标记
@@ -246,7 +266,7 @@ Add progress bar and cancel operation to CSV export.
 
 ## Context
 <!-- from slice plan, completed during registration -->
-用户导出功能的进度反馈增强。属于“数据导出 Epic”的第二个切片，依赖 export-feature-01-foundation 已归档的 CSV 导出主路径，为后续错误处理与重试能力提供进度状态基础。
+用户导出功能的进度反馈增强。属于"数据导出 Epic"的第二个切片，依赖 export-feature-01-foundation 已归档的 CSV 导出主路径，为后续错误处理与重试能力提供进度状态基础。
 
 ## Dependencies
 <!-- from slice plan, completed during registration -->
@@ -320,6 +340,25 @@ Add progress bar and cancel operation to CSV export.
 - proposal conflict: existing proposal.md for export-feature-02-progress-feedback diverges from confirmed Slice Plan; manual confirmation required before overwrite
 ```
 
+### slice-plan.yaml 冲突
+
+判定采用**语义级**比较，不逐字节比对（防止无害重排误报）。比较字段：`change_name` / `mode` / `workspace` / `sequencing_rule` / 切片集合（每切片的 `sequence` + `name` + `goal` + `depends_on` + `scope` + `handoff`）。
+
+| 情况 | 处理 |
+|------|------|
+| 文件不存在 | 写入（首次登记） |
+| 文件存在且语义与当前确认 Slice Plan 一致 | no-op（幂等成功） |
+| 文件存在且语义分叉（任一比较字段不一致） | **STOP**，要求人工确认是否覆盖；不得静默覆写 |
+
+遇冲突时输出：
+
+```md
+## Warnings
+- slice-plan conflict: existing <workspace>/openspec/slice-plans/export-feature.yaml diverges from confirmed Slice Plan (sequencing_rule / slice set / scope mismatch); manual confirmation required before overwrite
+```
+
+> 注意：`slice-plan.yaml` 的冲突与 `proposal.md` 的冲突是独立判定，互不代偿——proposal 一致不代表 yaml 一致，反之亦然。任一冲突即对该载体 STOP。
+
 ---
 
 ## 关键注意事项
@@ -329,7 +368,7 @@ Add progress bar and cancel operation to CSV export.
 3. **proposal 完整度是完成条件**：只创建 change 或只落 stub 都算未完成登记。
 4. **交接默认内嵌在 proposal**：除非用户或现有流程明确要求沿用独立交接文档，否则不要额外创建 handoff 文件；有真实契约时在 `proposal.md` 写 `Handoff`。
 5. **不要再交 `openspec-propose` 补 proposal**：proposal 已在登记阶段完成，下一步应继续后续 artifact。
-6. **workspace change 限制仍有效**：遇 workspace 且需 link initiative → STOP。
+6. **不用 initiative / context-store**：数据须落工作空间 repo 内；cross-repo 用 `openspec init` 建集中工作空间，**禁用** `openspec workspace setup`（机器本地存储，不可 git 同步）。
 
 ---
 
@@ -342,8 +381,7 @@ Add progress bar and cancel operation to CSV export.
 - boundary_check: registration only; no re-splitting, tracking, or implementation
 
 ## Core Output
-- registration_path: single-repo
-- initiative_link: none
+- workspace: null
 - registered_changes:
   - change: export-feature-01-foundation
     goal: CSV export golden path
@@ -360,11 +398,12 @@ Add progress bar and cancel operation to CSV export.
     state: complete
   - change: export-feature-02-progress-feedback
     state: complete
+- slice_plan_persisted: openspec/slice-plans/export-feature.yaml
 - sequencing_hint: Archive 01 before starting 02
 
 ## Handoff
 - handoff_to: openspec-continue
-- handoff_input: registered changes with completed proposal.md
+- handoff_input: registered changes with completed proposal.md + persisted slice-plan.yaml
 - handoff_reason: proposal is already complete; downstream artifacts can continue directly
 
 ## Next Step
@@ -375,7 +414,7 @@ Add progress bar and cancel operation to CSV export.
 - None
 ```
 
-## 固定回答模版示例 2：cross-repo
+## 固定回答模版示例 2：cross-repo（集中工作空间）
 
 ```md
 ## Result
@@ -384,8 +423,7 @@ Add progress bar and cancel operation to CSV export.
 - boundary_check: registration only; no re-splitting, tracking, or implementation
 
 ## Core Output
-- registration_path: cross-repo
-- initiative_link: platform-initiatives/oauth-migration
+- workspace: {path: /shared/integration-repos/oauth-migration, init_status: created}
 - registered_changes:
   - change: oauth-migration-01-auth-service-provider
     goal: Implement OAuth2.0 provider in auth-service
@@ -402,11 +440,12 @@ Add progress bar and cancel operation to CSV export.
     state: complete
   - change: oauth-migration-02-gateway-client
     state: complete
-- sequencing_hint: Archive 01 in auth-service before starting 02 in api-gateway
+- slice_plan_persisted: /shared/integration-repos/oauth-migration/openspec/slice-plans/oauth-migration.yaml
+- sequencing_hint: Archive 01 before starting 02
 
 ## Handoff
 - handoff_to: openspec-continue
-- handoff_input: registered changes with completed proposal.md
+- handoff_input: registered changes with completed proposal.md + persisted slice-plan.yaml
 - handoff_reason: proposal is already complete; downstream artifacts can continue directly
 
 ## Next Step
