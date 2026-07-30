@@ -21,22 +21,18 @@ description: Use when a confirmed Slice Plan needs OpenSpec change registration,
 
 ## Core Rules
 
-- 只处理**已确认** Slice Plan；缺字段或未确认就 STOP
-- **遇带 `initiative:` 字段的遗留 Slice Plan → STOP，要求退回 `openspec-slices-plan` 重新产出 `workspace:` 形态**——register 不重做 plan 决策（`initiative:`→`workspace:` 是 plan 的事）
-- cross-repo（`workspace:` 为对象）且 `init_status: required` → 先 `openspec init --tools none --force <workspace.path>` 建集中工作空间；`already-initialized` → 仅校验 `openspec/config.yaml` 存在（不跑 `validate`）
-- 每个 slice 都必须通过 subagent 调 `openspec-new-change`；不可用时退到 `/opsx:new`
-- 创建 change 一律 **repo-local，不带 `--initiative`**（CLI 契约，见 `references/cli-contract.md`）
-- 不允许只创建 change、只落 `Context / Dependencies / Scope` stub、或把 proposal 留给后续补写
-- `proposal.md` 至少完成：`Goal`、`Context`、`Dependencies`、`Scope`、`Requirements`、`Assumptions`、`Non-Goals`
-- 默认不新建独立交接文档；切片间影响若只是边界与顺序，写入 `Dependencies / Scope / Assumptions` 即可
-- 当且仅当 Slice Plan 的 `handoff` 为对象时，必须在当前 `proposal.md` 增加 `Handoff` 章节，并物化 `handoff_to / artifacts/contracts / ready_signal / consumer_expectations`
-- cross-repo 时把 `workspace.note`（切片代码落地哪些 repo）物化进 proposal 的 `Scope`/`Dependencies`
+**登记纪律（register 独有的门禁，执行步骤见 Workflow）**:
+- 只处理**已确认** Slice Plan（`user_confirmed: true`）；缺字段或未确认就 STOP
+- **遇带 `initiative:` 字段的遗留 Slice Plan → STOP，要求退回 `openspec-slices-plan` 重新产出 `workspace:` 形态**——register 不重做 plan 决策
+- 每个 slice 必须由 subagent 创建 change 并在**当轮**写完整 `proposal.md`——不允许只创建 change、只落 stub、或把 proposal 留给后续补写
+- `proposal.md` 至少完成 `Goal / Context / Dependencies / Scope / Requirements / Assumptions / Non-Goals`；`Handoff` 章节仅当 Slice Plan 的 `handoff` 为对象时才写并物化其四字段（契约见 `references/landing-patterns.md`）
+- cross-repo 时把 `workspace.note` 物化进 proposal 的 `Scope`/`Dependencies`
 - 最终回答只输出登记结果，不重做拆分、不汇报进度
 
-**MUST NOT（封堵回退旧机制）**:
+**MUST NOT（封堵回退旧机制，CLI 契约见 `references/cli-contract.md`）**:
 - **不得**使用 `context-store setup` / `initiative create` / `set change --initiative`——数据须落工作空间 repo 内（可 git 同步）
-- **不得**给 slice change 带 `--initiative`
-- **不得**使用 `openspec workspace setup` 建集中工作空间——它把数据写到机器本地 `~/.local/share/openspec/`，不可 git 同步、不可跨设备（CLI 契约已验证）；改用 `openspec init`
+- **不得**给 slice change 带 `--initiative`（一律 repo-local）
+- **不得**用 `openspec workspace setup` 建集中工作空间——机器本地 `~/.local/share/openspec/`，不可 git 同步（CLI 契约已验证）；改用 `openspec init`
 - **不得**同步/维护 initiative `tasks.md`——批次计划真相统一由 `openspec/slice-plans/<change_name>.yaml` 承载
 
 ## Workflow
@@ -44,7 +40,10 @@ description: Use when a confirmed Slice Plan needs OpenSpec change registration,
 1. 校验 Slice Plan 与必填字段，**且必须 `user_confirmed: true`**（未确认不得进入登记或持久化，防绕过 `openspec-slices-plan` 的确认门禁）。遇 `initiative:` 字段 → STOP 退回 plan。
 2. 判断 `workspace`：
    - `workspace: null` → single-repo，用当前 repo 的 `openspec/`
-   - `workspace:` 为对象 → cross-repo：若 `init_status: required`，跑 `openspec init --tools none --force <workspace.path>` 建集中工作空间；`already-initialized` 则仅校验 `openspec/config.yaml` 存在
+   - `workspace:` 为对象 → cross-repo：
+     - **解析路径**：若 `path` 为相对路径（如 `../integration-hub`），基于 `path_base`（默认 `target-project-root`，即当前目标项目根目录）解析为绝对路径
+     - 若 `init_status: required`，对解析后的绝对路径跑 `openspec init --tools none --force <resolved_path>` 建集中工作空间
+     - `already-initialized` 则仅校验 `<resolved_path>/openspec/config.yaml` 存在
 3. 为每个 slice 整理 `goal / context / dependencies / scope / handoff`（cross-repo 附 `workspace.note` 指明代码落地 repo）。
 4. 启动 subagent 在工作空间内创建或复用 change，并在同轮完成 `proposal.md`；严格按 Slice Plan 的 `handoff` 字段决定是否写 `Handoff` 章节。`new change` **不带 `--initiative`**。
 5. 持久化 Slice Plan YAML：把**确认的全量 Slice Plan YAML 原文**写入 `<workspace>/openspec/slice-plans/<change_name>.yaml`（`<workspace>` 为当前 repo 或集中工作空间 repo；CLI 不管理此子目录；仅当 step 1 已确认 `user_confirmed: true`）。幂等与冲突规则见 `references/landing-patterns.md`「Slice Plan YAML 持久化」。
@@ -69,7 +68,7 @@ subagent 输入至少包含：
 - `sequence` / `name` / `goal`
 - `context` / `dependencies` / `scope.in` / `scope.out`
 - `handoff`：直接读取 Slice Plan 中的 `handoff` 字段；`null` 表示不写 `proposal.md` 的 `Handoff`，对象表示必须物化为 `proposal.md` 的 `Handoff`
-- `workspace`（cross-repo 适用）：`path`、`note`（代码落地 repo，物化进 proposal 的 scope/dependencies）
+- `workspace`（cross-repo 适用）：`path`（已解析为绝对路径）、`note`（代码落地 repo，物化进 proposal 的 scope/dependencies）
 - 工作目录指针：subagent 必须在 `<workspace>`（当前 repo 或集中工作空间 repo）内运行 CLI
 
 subagent 输出必须保证：
@@ -78,6 +77,26 @@ subagent 输出必须保证：
 - `handoff` 为对象时，`proposal.md` 含非空 `Handoff` 章节，且字段语义与 Slice Plan 保持一致；`handoff: null` 时，不得为了“完整”额外创建 `Handoff`
 - cross-repo 时 proposal 的 `Scope`/`Dependencies` 含落地 repo 标注（来自 `workspace.note`）
 - 不含 `TODO` / `TBD` / 空章节 / stub-only 内容
+
+## Subagent Failure Handling
+
+**核心原则**：
+- 任一 slice 失败 → 立即 STOP，不继续后续 slices（避免依赖链断裂后继续登记）
+- `status: partially-registered` 时，已登记的 slices 不回滚；幂等重试时跳过已成功的
+- 用户修复后重新调用 register，已成功的 slices 视为幂等（`already exists` 视为成功）
+
+**失败处理表**：
+
+| 失败 | 父流程动作 | 输出示例 |
+|---------|---------------|---------|
+| subagent 创建 change 失败（CLI 错误） | **STOP 整个 register**，报告失败 slice + CLI 错误详情 | `status: stop`; `failed_slice: export-feature-02-progress`; `reason: CLI error: Invalid change name` |
+| subagent 未写完整 proposal | **STOP**，列出缺失章节与该 slice | `status: stop`; `failed_slice: ...`; `reason: proposal incomplete, missing: Requirements, Assumptions` |
+| proposal.Handoff 与 Slice Plan.handoff 不一致 | **STOP**，报告不一致详情 | `status: stop`; `reason: proposal Handoff mismatch for ...: plan.handoff is object but proposal has no Handoff section` |
+| `openspec-new-change` 与 `/opsx:new` 都不可用 | **STOP**，报告无可用创建入口 | `status: stop`; `reason: neither openspec-new-change nor /opsx:new available` |
+| subagent 超时（无响应） | **STOP**，建议手动完成该 slice 登记 | `status: stop`; `failed_slice: ...`; `reason: subagent timeout after 300s; suggest manual registration` |
+| 已处理部分 slices，当前 slice 失败 | **STOP**，`status: partially-registered`，列出已成功与失败的 slices | `status: partially-registered`; `registered: [01]`; `failed: [02]` |
+
+> 不支持断点续传参数：register 通过 CLI 的 `already exists` 响应自动实现幂等。完整 subagent 调用模式与 proposal 写作契约见 `references/landing-patterns.md`。
 
 ## Response Template
 

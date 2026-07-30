@@ -90,7 +90,8 @@ Context / Dependencies / Scope / Handoff 必须严格来自以下 Slice Plan：
 mode: single-workspace
 workspace:
   kind: integration-repo
-  path: /shared/integration-repos/oauth-migration
+  path: ../oauth-migration  # 相对于目标项目根目录
+  path_base: target-project-root
   init_status: required
   note: 切片代码分别落地 auth-service / api-gateway / web-frontend
 change_name: oauth-migration
@@ -130,16 +131,18 @@ slices:
 
 1. **校验 Slice Plan**：`workspace` 为对象、`path` / `kind` / `init_status` / `note` 完整。
 2. **创建集中工作空间**（仅 `init_status: required`）：
+   - 解析相对路径：若 `path` 为相对路径（如 `../oauth-migration`），基于 `path_base`（默认 `target-project-root`）解析为绝对路径
+   - 对解析后的绝对路径运行：
    ```bash
-   openspec init --tools none --force /shared/integration-repos/oauth-migration
+   openspec init --tools none --force <resolved_path>
    ```
    实跑验证：在该路径创建 `openspec/{config.yaml,changes/,changes/archive/,specs/}`，in-repo、可 git 同步。`--tools none` 避免在工作空间内安装 agent skills 副本。
-   `already-initialized` 时跳过，仅校验 `openspec/config.yaml` 存在。
+   `already-initialized` 时跳过，仅校验 `<resolved_path>/openspec/config.yaml` 存在。
 3. **逐切片启动 subagent**：在集中工作空间内创建/复用 repo-local change（**不带 `--initiative`**），并当场完成 `proposal.md`；proposal 的 `Scope`/`Dependencies` 注明代码实际落地哪个 repo（来自 `workspace.note`）。
 4. **校验**：每个 change 的 `.openspec.yaml` 存在且 `initiative` 字段**应缺省**（因未带 `--initiative`）；proposal 完整、`Handoff` 与 Slice Plan.handoff 一致、scope/dependencies 含落地 repo 标注。
 5. **输出结果**：
    ```
-   已登记切片（cross-repo，workspace: /shared/integration-repos/oauth-migration）：
+   已登记切片（cross-repo，workspace: <resolved_path>）：
    - oauth-migration-01-auth-service-provider (auth-service): Implement OAuth2.0 provider
    - oauth-migration-02-gateway-client (api-gateway): Integrate OAuth2.0 client (depends on 01)
 
@@ -423,7 +426,7 @@ Add progress bar and cancel operation to CSV export.
 - boundary_check: registration only; no re-splitting, tracking, or implementation
 
 ## Core Output
-- workspace: {path: /shared/integration-repos/oauth-migration, init_status: created}
+- workspace: {path: <resolved_absolute_path>, init_status: created}
 - registered_changes:
   - change: oauth-migration-01-auth-service-provider
     goal: Implement OAuth2.0 provider in auth-service
@@ -440,7 +443,7 @@ Add progress bar and cancel operation to CSV export.
     state: complete
   - change: oauth-migration-02-gateway-client
     state: complete
-- slice_plan_persisted: /shared/integration-repos/oauth-migration/openspec/slice-plans/oauth-migration.yaml
+- slice_plan_persisted: <resolved_workspace_path>/openspec/slice-plans/oauth-migration.yaml
 - sequencing_hint: Archive 01 before starting 02
 
 ## Handoff

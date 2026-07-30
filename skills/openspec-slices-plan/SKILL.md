@@ -13,19 +13,18 @@ description: Use when a request is too large for one Change, needs slice strateg
 
 **核心原则**：以“可独立推进、依赖清晰、owner 明确”为标准。先判项目形态，再定切法；拿不准时先合后拆。
 
-**边界**：只产 Slice Plan 文本，零写文件——不执行 CLI 登记、不写 proposal/specs/design/tasks 全文、不写业务代码、不跟踪进度、不改 config.yaml/managed skills、**不运行 `openspec init`（集中工作空间由 `openspec-slices-register` 创建）**。cross-repo 时只在 Slice Plan 中**声明** `workspace`（路径与初始化状态），不负责实际创建。
+**边界**：只产 Slice Plan 文本，零写文件——cross-repo 时只在 Slice Plan 中**声明** `workspace`（路径与初始化状态），不负责实际创建。完整"不做"清单见下方 `Boundaries`。
 
 ## Quick Reference
 
-| Task | Key Actions |
-|------|-------------|
-| **从 explore 衔入** | 读取 explore 结晶结果或用户需求，确认范围与现有行为 |
-| **判该不该拆** | 单一责任单元 + 文件 ≤5 + 代码 ≤150 行 → 单切片；否则拆分 |
-| **判项目形态** | 单一项目/单仓 → 优先垂直业务切片；多项目/多仓分离 → 可按技术层或仓库边界切 |
-| **生成切片与序号** | `{change-name}-{change-num}-{slice-change-name}` 命名 + kebab-case，定义 goal / depends_on / scope |
-| **定 mode 与 workspace** | 单一项目 → `workspace: null`；跨仓/多团队 → `workspace:{kind:integration-repo,path,init_status,note}` |
+决策锚点（执行细节见下方 Workflow）：
+
+| 锚点 | 判定 |
+|------|------|
+| **该不该拆** | 单一责任单元 + 文件 ≤5 + 代码 ≤150 行 → 单切片；否则拆分 |
+| **项目形态** | 单一项目/单仓 → 垂直业务切片；多项目/多仓分离 → 技术层或仓库边界切 |
+| **mode/workspace** | 单一项目 → `workspace: null`；跨仓/多团队 → `workspace:{kind:integration-repo,path,init_status,note}` |
 | **请求确认** | 输出固定模版；未确认不得交给 register |
-| **交接** | 仅把已确认 Slice Plan 交 `openspec-slices-register` |
 
 ## Critical Rules
 
@@ -39,19 +38,18 @@ description: Use when a request is too large for one Change, needs slice strateg
 
 **MUST NOT（封堵回退旧机制）**:
 - **不得**在 Slice Plan 中产出 `initiative:` 块或要求使用 `context-store` / `--initiative`——数据必须落在工作空间 repo 内（可 git 同步）
-- **不得**运行 `openspec init` / `openspec workspace setup`——前者由 register 在 cross-repo 创建集中工作空间，后者弃用（机器本地存储，不可 git 同步）
+- **不得**用 `openspec workspace setup` 建集中工作空间——机器本地存储，不可 git 同步（CLI 契约已验证）；cross-repo 集中工作空间由 register 用 `openspec init` 创建
 
 **STOP**:
 - 未持有用户确认的 Slice Plan 时不得进入 Change 登记环节
-- 不得自行代替 `openspec-slices-register` 执行 `openspec init` / `openspec new change`
 - 跨仓场景遇 workspace change（非 repo-local）需求 → STOP，要求改 repo-local 或退回用户决策
 
 **Hardness**：本技能处于 L1-L2（Explore/Proposal 区间）——拆分决策是结构化建议，但触发条件与确认门禁是硬约束。
 
 ## Boundaries
 
-**不做**:
-- 不执行 `openspec init` / `openspec new change`
+**不做**（单一完整清单）:
+- 不执行 `openspec init` / `openspec new change` / `openspec workspace setup`（集中工作空间由 `openspec-slices-register` 用 `openspec init` 创建）
 - 不写 proposal.md / specs / design / tasks 完整内容
 - 不写业务代码
 - 不勾选或跟踪 task 进度
@@ -65,8 +63,18 @@ description: Use when a request is too large for one Change, needs slice strateg
 3. **判断项目形态并选维度** — 单一项目/单仓优先按用户可感知价值做垂直业务切片；若需求天然跨多个项目、仓库或职责面（如前端 / 后端 / 数据库分离交付），可按技术层或仓库边界切，但每片必须有清晰 owner 与依赖。
 4. **生成切片与序号** — 每切片使用 `{change-name}-{change-num}-{slice-change-name}` 命名：`change-name` 为本批次的父批次名（同批次所有切片共享），`change-num` 为两位序号 `01`/`02`/...（按依赖顺序递增），`slice-change-name` 为切片描述名；三段均为 kebab-case。定义 `goal`、`areas`、`depends_on`。
 5. **依赖序列** — 选择 `sequencing_rule`：`archive-N-before-N+1` / `parallel` / `merge-first-split-later`。
-6. **定 mode 与 workspace** — 单一项目/单仓 → `mode: single-workspace`，`workspace: null`（用当前 repo 的 `openspec/`）。跨仓/多团队协作 → `mode: single-workspace`，`workspace:` 为对象：`kind: integration-repo`、`path`（集成 repo 根路径，由 register 创建）、`init_status: required`（新）或 `already-initialized`（复用已有）、`note`（切片代码实际落地哪些 repo，由 register 物化进 proposal 的 scope/dependencies）。**本技能只声明 workspace，不创建它**。
-7. **起草骨架** — 为每切片起草 `context`、`dependencies`、`scope`，并判断是否存在需要下游显式消费的 `handoff` 契约；cross-repo 时在 `workspace.note` 标注每片代码落地哪个 repo；只定义边界，不落盘任何文件、不跑 `openspec init`。
+6. **定 mode 与 workspace** — 单一项目/单仓 → `mode: single-workspace`，`workspace: null`（用当前 repo 的 `openspec/`）。跨仓/多团队协作 → `mode: single-workspace`，`workspace:` 为对象：
+   - `kind`: 恒为 `integration-repo`
+   - `path`: 集成 repo 根路径（**推荐相对路径**，相对于目标项目根目录，如 `../oauth-integration-hub`、`./workspaces/integration`；也支持绝对路径如 `~/projects/integration-hub`）。相对路径保证计划随项目迁移/克隆时无需改路径，数据可移植
+   - `path_base`: `target-project-root`（默认值，可省略）
+   - `init_status`: 判定规则:
+     - **优先询问用户**: "集成工作空间 `<path>` 是否已初始化（存在 openspec/config.yaml）?"
+     - 用户回答 "是" → `already-initialized`
+     - 用户回答 "否" 或 "需要创建" → `required`
+     - 用户不确定 → 技能可探测: 解析 path 为绝对路径后，检查 `<resolved_path>/openspec/config.yaml` 是否存在；存在 → `already-initialized`；不存在 → `required`
+   - `note`: 切片代码实际落地哪些 repo（cross-repo 时必填，由 register 物化进 proposal 的 scope/dependencies）
+   **本技能只声明 workspace，不创建它**。
+7. **起草骨架** — 为每切片起草 `context`、`dependencies`、`scope`，并判断 `handoff`（是否需下游显式消费契约，规则见 `Slice Plan Schema` 的 handoff 字段规则）；cross-repo 时在 `workspace.note` 标注每片代码落地哪个 repo；只定义边界，不落盘任何文件、不跑 `openspec init`。
 8. **使用固定模版输出 Slice Plan** — 按 `Response Template` 原样输出，保留 `Slice Plan` 作为唯一交接契约。
 9. **请求确认并交接** — 用户确认后，交 `openspec-slices-register`；未确认时保持在 plan 阶段。register 将据此创建 workspace（若 cross-repo）、登记切片、持久化 `openspec/slice-plans/<change_name>.yaml`。
 
@@ -90,7 +98,9 @@ Slice Plan (user_confirmed: true)
 mode: single-workspace          # 唯一取值；single-repo 与 cross-repo 都用此值
 workspace: null | {             # null=single-repo（用当前 openspec/）；对象=cross-repo（集成 repo）
   kind: integration-repo
-  path: <path>                  # 集成 repo 根路径；cross-repo 由 register 创建/确认
+  path: <path>                  # 集成 repo 根路径；推荐相对路径（相对于目标项目根目录，如 ../integration-hub）
+                                # — 相对路径保证计划随项目一起迁移/克隆时无需改路径，数据可移植
+  path_base: target-project-root  # 路径基准（默认值，可省略）；相对路径以目标项目根目录为解析基准
   init_status: required | already-initialized
   note: <切片代码实际落地哪些 repo，写入 proposal 的 scope/dependencies>
 }

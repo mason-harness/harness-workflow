@@ -221,7 +221,7 @@ openspec/changes/
 **适用场景**：跨多个仓库 / 多团队协作的需求，需集中协调且数据要随 git 同步、跨设备使用。
 
 **数据模型（单工作空间 repo-local 流）**：
-- **集中工作空间（集成 repo）**：一个 git repo，由 `openspec init <path>` 在其内创建 `openspec/{config.yaml,changes/,specs/}`
+- **集中工作空间（集成 repo）**：一个 git repo，由 `openspec init <path>` 在其内创建 `openspec/{config.yaml,changes/,specs/}`；path 推荐使用相对路径（相对于目标项目根目录，如 `../integration-hub`）
 - **切片**：全部在该工作空间内以 **repo-local change** 登记（`openspec new change <name> --goal <g>`，**不带 `--initiative`**）
 - **批次计划真相**：`openspec/slice-plans/<change_name>.yaml`，由 `openspec-slices-register` 持久化，供 `openspec-slices-track` 读取
 - **代码落地**：切片代码实际在哪些 repo 实现，由 plan 在 `workspace.note` 标注、register 物化进 proposal 的 `scope`/`dependencies`（工作空间只承载 OpenSpec 文档与计划，不强制存放业务代码）
@@ -229,8 +229,8 @@ openspec/changes/
 **为什么不用 context-store / initiative**：它们指向机器本地或外部 store，`openspec workspace setup` 还把数据写到 `~/.local/share/openspec/`（不可 git 同步、不可跨设备）。单工作空间 repo-local 流让所有数据留在可 git 同步的 repo 内，满足「数据跨设备使用」要求。CLI 契约详见 `openspec-slices-register/references/cli-contract.md`。
 
 **声明流程（由 `openspec-slices-plan` 执行，仅声明不创建）**：
-1. plan 在 Slice Plan 声明 `workspace:{kind:integration-repo,path:<集成repo>,init_status:required|already-initialized,note:<各片落地 repo>}`
-2. 交 `openspec-slices-register`：对 `init_status: required` 跑 `openspec init --tools none --force <path>`，随后各切片 `openspec new change "<name>" --goal "<g>"`（不带 `--initiative`），持久化 yaml
+1. plan 在 Slice Plan 声明 `workspace:{kind:integration-repo,path:<相对或绝对路径>,path_base:target-project-root,init_status:required|already-initialized,note:<各片落地 repo>}`；path 推荐相对路径（如 `../integration-hub`）
+2. 交 `openspec-slices-register`：register 先解析相对路径为绝对路径，对 `init_status: required` 跑 `openspec init --tools none --force <resolved_path>`，随后各切片 `openspec new change "<name>" --goal "<g>"`（不带 `--initiative`），持久化 yaml
 
 **关键限制**：
 - **workspace change 不走本流**：workspace change（非 repo-local）不属单工作空间 repo-local 流；遇此类需求 → **STOP**，要求改 repo-local 或退回用户决策

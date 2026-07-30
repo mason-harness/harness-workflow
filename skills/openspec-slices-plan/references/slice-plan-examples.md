@@ -147,7 +147,8 @@ Slice Plan (user_confirmed: true)
 mode: single-workspace
 workspace:
   kind: integration-repo
-  path: /shared/integration-repos/oauth-migration   # 集成 repo 根路径；register 会 openspec init
+  path: ../oauth-migration   # 相对于目标项目根目录；register 会解析并 openspec init
+  path_base: target-project-root
   init_status: required
   note: 切片代码分别落地 auth-service / api-gateway / web-frontend（物化进 proposal 的 scope/dependencies）
 change_name: oauth-migration
@@ -234,12 +235,13 @@ slices:
 ```
 
 **登记后**（由 `openspec-slices-register` 执行）：
-1. 对集成 repo 跑 `openspec init --tools none --force /shared/integration-repos/oauth-migration`（`init_status: required` 时）
-2. 在该工作空间 `openspec/` 下登记各切片（均 repo-local，不带 `--initiative`）：
+1. register 解析相对路径 `../oauth-migration` 为绝对路径（基于目标项目根目录）
+2. 对集成 repo 跑 `openspec init --tools none --force <resolved_path>`（`init_status: required` 时）
+3. 在该工作空间 `openspec/` 下登记各切片（均 repo-local，不带 `--initiative`）：
    - `openspec new change "oauth-migration-01-auth-service-provider" --goal "..."`
    - `openspec new change "oauth-migration-02-gateway-client" --goal "..."`
    - `openspec new change "oauth-migration-03-frontend-login" --goal "..."`
-3. 持久化 `openspec/slice-plans/oauth-migration.yaml`
+4. 持久化 `openspec/slice-plans/oauth-migration.yaml`
 
 每个 change 的 proposal.md 在 `Scope`/`Dependencies` 注明代码实际落地哪个 repo（来自 `workspace.note`）。
 
@@ -328,7 +330,7 @@ slices:
 - decision: split
 - rationale: 跨三仓与两团队协作，且职责天然按服务边界分离，适合按技术层/仓库边界切片并声明集中工作空间
 - mode: single-workspace
-- workspace: {kind: integration-repo, path: /shared/integration-repos/oauth-migration, init_status: required, note: 切片代码分别落地 auth-service/api-gateway/web-frontend}
+- workspace: {kind: integration-repo, path: ../oauth-migration, path_base: target-project-root, init_status: required, note: 切片代码分别落地 auth-service/api-gateway/web-frontend}
 - sequencing_rule: archive-N-before-N+1
 - slices:
   - sequence: 01
@@ -352,7 +354,7 @@ slices:
 ```yaml
 Slice Plan (user_confirmed: false)
 mode: single-workspace
-workspace: {kind: integration-repo, path: /shared/integration-repos/oauth-migration, init_status: required, note: ...}
+workspace: {kind: integration-repo, path: ../oauth-migration, path_base: target-project-root, init_status: required, note: ...}
 change_name: oauth-migration
 ...
 ```

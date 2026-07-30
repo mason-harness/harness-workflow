@@ -4,12 +4,14 @@
 
 ## 状态映射
 
-基于 OpenSpec CLI 的 active change 列表与逐个补查得到的 archived 状态合并结果，将每个切片映射为以下四类状态：
+基于 `openspec list --json` 的 active change 列表与对 `openspec/changes/archive/` 目录扫描得到的 archived 集合合并结果，将每个切片映射为以下四类状态：
 
 - `archived` → **已归档**
 - `in-progress` → **进行中**
 - `ready` → **可启动**
 - `blocked` → **被阻塞**
+
+> archived 检测不靠 CLI：`list` 不列 archived、`status --change <archived>` 报 `not found`。archived change 归档时移入 `<workspace>/openspec/changes/archive/<YYYY-MM-DD>-<name>/`，track 扫该目录按目录名后缀 `-<slice-full-name>` 匹配。
 
 ## 判定规则
 
@@ -17,7 +19,7 @@
 
 满足全部条件：
 - 该 change 不在 `openspec list --json` 的 active 列表中
-- 且对该 change 运行 `openspec status --change <name> --json` 后可确认其状态为 `archived`
+- 且在 `<workspace>/openspec/changes/archive/` 下存在目录名以 `-<slice-full-name>` 结尾（即 `<YYYY-MM-DD>-<slice-full-name>` 形态）
 
 显示格式：
 ```text
@@ -134,7 +136,7 @@
 
 ## Core Output
 - plan_source: openspec/slice-plans/sample-feature.yaml
-- live_status_source: cli
+- live_status_source: cli(list active) + filesystem(archive scan)
 - progress_board: |
     ┌─────────────────────────────────────────────────┐
     │     Sample Feature 切片进度（7 个切片）          │
@@ -167,4 +169,55 @@
 
 ## Warnings
 - None
+```
+
+## 多 yaml 聚焦示例
+
+`<workspace>/openspec/slice-plans/` 存在 ≥2 个 yaml 时，按三段命名前缀自动匹配当前活跃族。前缀提取：取 change 名到第二个 `-` 之前（`oauth-migration-01-provider` → `oauth-migration`）；不足三段不匹配。
+
+### 场景 1：唯一匹配 → 聚焦
+
+```
+slice-plans/: export-feature.yaml, oauth-migration.yaml
+list 返回: export-feature-01-foundation, export-feature-02-progress, other-single-change
+前缀: export-feature×2, oauth-migration×0
+→ 聚焦 export-feature.yaml
+```
+
+### 场景 2：多个匹配 → STOP
+
+```
+list 返回: export-feature-01-foundation, oauth-migration-01-provider, oauth-migration-02-client
+统计: export-feature=1, oauth-migration=2
+→ STOP，列出候选族让用户指定当前批次
+```
+
+### 场景 3：零匹配 → 取最新 mtime
+
+```
+list 返回: other-legacy-change（无三段前缀）
+统计: 全部 =0
+→ 取 mtime 最大的 yaml，警告"无活跃 change 匹配，基于最新计划追踪"
+```
+
+### 前缀提取伪代码
+
+```python
+def extract_prefix(change_name):
+    """三段命名取前两段作为 change_name 前缀"""
+    parts = change_name.split('-')
+    return f"{parts[0]}-{parts[1]}" if len(parts) >= 3 else None
+
+def auto_focus_yaml(yaml_files, active_changes):
+    if len(yaml_files) == 1:
+        return yaml_files[0]
+    yaml_map = {parse_yaml(f)['change_name']: f for f in yaml_files}
+    prefixes = [p for p in (extract_prefix(n) for n in active_changes) if p]
+    counts = {cn: prefixes.count(cn) for cn in yaml_map}
+    matched = {cn: c for cn, c in counts.items() if c > 0}
+    if len(matched) == 1:
+        return yaml_map[next(iter(matched))]
+    if len(matched) >= 2:
+        raise StopError(f"多个活跃批次: {matched}")
+    return max(yaml_files, key=lambda f: os.path.getmtime(f))  # 零匹配取最新
 ```
