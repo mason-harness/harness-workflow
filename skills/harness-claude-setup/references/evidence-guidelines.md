@@ -63,3 +63,4 @@
 - 目录结构应优先固定为 `README.md / glossary.md / architecture.md / modules.md / integrations.md / decisions/`
 - 若某类知识无法确认稳定性，不要先建文件凑结构
 - 不要再新增 `project.md` 作为项目知识主载体；需要摘要时写入 `repository/README.md`
+- 非功能性改动委派（格式化/import 排序/lint 自动修复交给 git commit hook 等外部工具）是 CLAUDE.md 模板级软规则，不依赖项目证据即可写入；具体见 `structure-templates.md` 的 `## Don't` 示例与 `## Before Finishing` 检查项

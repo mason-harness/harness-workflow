@@ -71,6 +71,17 @@ repository/
 - [ ] 运行相关测试，全部通过
 - [ ] 确认 tasks.md 全部勾选
 - [ ] 确认只修改了预期文件（`git status`）
+- [ ] 确认 diff 只含功能性变更；格式化/import 排序/lint 自动修复等非功能性清理已交给外部工具（git commit hook / formatter / lint --fix），未混入本次 diff
+```
+
+### Don't（示例条目）
+
+非功能性改动的委派规则：
+
+```markdown
+## Don't
+
+- 不要把代码格式化、import 排序、lint 自动修复、空白/尾逗号等不影响功能的改动混入功能 diff；这类工作交给项目的 git commit hook / formatter / lint --fix 等外部工具，保持 diff 聚焦于功能性变更。
 ```
 
 ### Dangerous Operations（STOP 门禁）

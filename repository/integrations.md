@@ -31,6 +31,7 @@ OpenSpec CLI 相关精确契约应以：
 - `CLAUDE.md`：标记危险操作与 STOP 条件
 - OpenSpec 配置：标记 verify / archive 等阶段的 gate
 - `harness-hook-setup`：把这些 gate 落地为 PreToolUse Hook
+- **代码格式化/import 排序/lint 自动修复等非功能性改动的委派**：是 CLAUDE.md 软规则（`harness-claude-setup` 写入 `## Don't` / `## Before Finishing`），其“外部工具”载体之一是 **git commit hook**（项目级 VCS 机制，外部于 Claude Code，不由 `harness-hook-setup` 配置）；`harness-hook-setup` 只配 Claude Code PreToolUse 硬门禁，不承载代码风格类软约束。
 
 因此，知识库中只记录“谁负责什么”，不复制 Hook 脚本实现细节。
 

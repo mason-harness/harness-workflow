@@ -13,6 +13,7 @@
 | Before Finishing 章节缺失或空泛 | 必须包含可执行检查清单（typecheck、lint、test、git status） |
 | Dangerous Operations 章节缺失 | 必须标注高风险操作的 STOP 条件（删除、配置变更、生产部署） |
 | 未封堵自我合理化 | 补充“禁止的自我合理化”章节，封堵“改动小不需要测试”等话术 |
+| 把格式化/import 排序/lint 自动修复等非功能性改动混入功能 diff | 在 CLAUDE.md `## Don't` 写委派规则，`## Before Finishing` 加 diff 聚焦检查；非功能性清理交给 git commit hook / formatter / lint --fix 等外部工具，不内联到功能改动 |
 
 ## 红旗警告 - 停止并询问或重定向
 

@@ -126,6 +126,17 @@ description: 当遇到 CLAUDE.md 过时命令、多项目目录歧义、未验�
 
 高风险操作（数据删除、生产部署、配置变更）时，向用户说明风险与 Hook 硬门禁价值；如需记录长期流程，将 Harness/OpenSpec 使用流程写入目标项目 `repository/`，不要写进 `CLAUDE.md`。
 
+### 非功能性改动委派 vs Hook 硬门禁
+
+代码格式化、import 排序、lint 自动修复等非功能性改动的委派规则是 **CLAUDE.md 软约束**（写在 `## Don't` 与 `## Before Finishing`），目的是保持功能 diff 聚焦。
+
+这条规则有三种边界，不要混淆：
+- **软规则（CLAUDE.md `## Don't`）**：本规则本身，由 `harness-claude-setup` 写入目标项目 CLAUDE.md，靠会话注入约束。
+- **Claude Code PreToolUse Hook（`harness-hook-setup`，settings.json）**：只承载高风险/不可逆操作的硬门禁；**不得**承载代码风格/格式化类软约束（见 `harness-hook-setup` Red Flags）。
+- **git commit hook（pre-commit / husky / lefthook / .githooks / core.hooksPath）**：项目级 VCS 机制，**外部于 Claude Code**，在 commit 时跑 formatter / lint --fix；这是“交给外部工具”所指的载体之一，**不由 `harness-hook-setup` 配置**。
+
+因此：不要把“格式化委派给 git commit hook”路由到 `harness-hook-setup`；那是项目侧的 VCS 配置，不是 Claude Code Hook。
+
 ### 交接给 OpenSpec 配置流程
 
 当编码/测试/流程规则需要投射为 OpenSpec artifact 规则，或需要让 OpenSpec 读取根目录知识库作为项目上下文时，只把稳定流程知识放入 `repository/`；不要把具体 skill 使用方式写入 `CLAUDE.md`。

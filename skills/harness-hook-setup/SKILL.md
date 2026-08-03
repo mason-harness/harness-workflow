@@ -31,6 +31,7 @@ description: Use when setting up PreToolUse Hooks, model bypasses safety rules, 
 - 修改 CLAUDE.md 或 config.yaml 本身（使用 `harness-claude-setup` 或 `harness-openspec-setup`）
 - 配置 keybindings、model、theme 等非 Hook 设置（使用 `harness-hook-setup`）
 - 执行 OpenSpec 工作流（使用 `openspec-slices-track`）
+- 把代码格式化/import 排序/lint 自动修复等非功能性改动委派给 **git commit hook**（pre-commit / husky / lefthook / .githooks / core.hooksPath）—— 那是项目级 VCS 机制，外部于 Claude Code，不在本 skill 范围；本 skill 只配置 Claude Code PreToolUse Hook
 
 ## Critical Guidelines
 
@@ -553,6 +554,7 @@ done
 - **准备用 Pattern Library 模板但未修改工作目录检查逻辑**（模板可能过时，必须根据规则作用域调整）
 - **正则表达式过于宽泛**（如 `r"(sqlite3?|\.db)"` 会误拦截文档）
 - 准备把代码风格、命名规范等软约束配置为 Hook
+- 准备把“格式化委派给 git commit hook”这类需求当成 Claude Code Hook 来配置（git commit hook 是项目级 VCS 机制，不在本 skill 范围；格式化是软约束，不应硬化）
 - 准备生成 Hook 脚本但跳过测试用例
 - 准备直接覆盖 settings.json 而没有先读取
 - 准备让脚本在通过时输出内容
